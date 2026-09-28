@@ -312,3 +312,11 @@ index 24c5dcb..e092c01 100755
 +export REVIEW_API_KEY
  exec python3 -m review_server
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master 5b35783
+```

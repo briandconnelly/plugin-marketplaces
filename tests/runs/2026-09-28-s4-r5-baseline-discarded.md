@@ -408,3 +408,11 @@ index 0000000..06de0d4
 +    print(e, file=sys.stderr)
 +sys.exit(1 if errors else 0)
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master a9b754a
+```

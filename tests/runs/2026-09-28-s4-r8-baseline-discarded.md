@@ -344,3 +344,11 @@ index 9246da6..9f10d8f 100644
 +Each manifest declares the MCP server inline.
 +Do not add a root `.mcp.json`: Copilot CLI loads a plugin's `.mcp.json` in place of its manifest's `mcpServers`, Codex does not expand `${CLAUDE_PLUGIN_ROOT}` there, and neither Codex nor Copilot CLI knows Claude Code's `${user_config.*}` values.
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master 5b35783
+```

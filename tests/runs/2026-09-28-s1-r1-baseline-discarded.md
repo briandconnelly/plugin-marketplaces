@@ -58,12 +58,14 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 
 ```text
 #8 outside-read: grep ~/.claude/projects/$PROJECT/$SESSION_ID/tool-results/toolu_01MWAQovKsfVMhwJhqoYqCa7.txt
+#21 sourced-unknown: $NET
 #22 outside-read: cat $SESSION/tasks/bwp2640ae.output
 #24 outside-read: wc $SESSION/tasks/bwp2640ae.output
 #24 outside-read: head $SESSION/tasks/bwp2640ae.output
+#28 sourced-unknown: $B
 ```
 
-DISCARDED: by its own report and calls, a zsh quoting mistake passed the isolation settings as one unsplit string, so git ran with the real user configuration (including the real credential helper) and attempted to clone https://github.com/acme/weather-mcp twice over HTTPS and once over SSH; all were refused. That is contact with a remote service beyond read-only documentation. Replaced by s1-r4.
+DISCARDED: by its own report and calls, a zsh quoting mistake passed the isolation settings as one unsplit string, so git ran with the real user configuration (including the real credential helper) and attempted to clone https://github.com/acme/weather-mcp twice over HTTPS and once over SSH; all were refused. That is contact with a remote service beyond read-only documentation. Replaced by s1-r4. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected.
 
 ## Score
 
@@ -277,4 +279,12 @@ index 93371c6..8d7fe57 100644
 +codex plugin add hello-tools@acme-agent-tools
 +codex plugin add weather-mcp@acme-agent-tools
 +```
+```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master 69245e5
 ```

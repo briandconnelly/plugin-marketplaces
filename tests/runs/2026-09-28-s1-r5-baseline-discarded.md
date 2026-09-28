@@ -290,3 +290,11 @@ index 93371c6..5917caa 100644
 +
 +Update the `ref` and `sha` of the `weather-mcp` entry in both marketplace files together, and set `sha` to the full 40-character commit the tag points at.
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master 6dafcbe
+```

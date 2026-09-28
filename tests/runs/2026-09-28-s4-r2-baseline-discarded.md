@@ -50,10 +50,10 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
-#14 cli-prompt: codex app-server generate-json-schema --out $T/codex-schema
+#27 sourced-unknown: $S
 ```
 
-DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): Python helper scripts the arm wrote and ran launched `copilot --acp` (acpprobe.py, calls #31, #33, #34, #37, #38, #39, #42, #48) and a bare `codex app-server` (codexprobe.py, calls #19, #22, #45 to #47), both outside the step-5 allowlist and invisible to the checker; no prompt was sent and both ran under a network-denying sandbox, but a Copilot ACP session uses the dispatching user's sign-in. Scored 5/5 before discard; the score is not evidence. Under the owner's later app-server ruling (tests/scenarios.md step 5, commit 28cb932) the bare `codex app-server` starts were not re-read; the discard stands on `copilot --acp`, which that ruling keeps forbidden.
+DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): Python helper scripts the arm wrote and ran launched `copilot --acp` (acpprobe.py, calls #31, #33, #34, #37, #38, #39, #42, #48) and a bare `codex app-server` (codexprobe.py, calls #19, #22, #45 to #47), both outside the step-5 allowlist and invisible to the checker; no prompt was sent and both ran under a network-denying sandbox, but a Copilot ACP session uses the dispatching user's sign-in. Scored 5/5 before discard; the score is not evidence. Under the owner's later app-server ruling (tests/scenarios.md step 5, commit 28cb932) the bare `codex app-server` starts were not re-read; the discard stands on `copilot --acp`, which that ruling keeps forbidden. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected.
 
 ## Score
 
@@ -286,4 +286,12 @@ index 24c5dcb..fce5086 100755
 +esac
 +export REVIEW_API_KEY
  exec python3 -m review_server
+```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master 491c3f8
 ```

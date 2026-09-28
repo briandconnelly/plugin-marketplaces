@@ -395,3 +395,11 @@ index 8fc96bb..de1d779 100644
  description: Review the current diff
  ---
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+master c1b67f3
+```
