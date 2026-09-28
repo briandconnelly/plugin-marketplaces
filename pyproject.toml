@@ -1,0 +1,22 @@
+[project]
+name = "plugin-marketplaces"
+version = "0.1.0"
+description = "Agent skill for creating and maintaining user-hosted plugin marketplaces"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.3", "jsonschema>=4.23", "pyyaml>=6.0", "ruff", "ty"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["skills/plugin-marketplaces/scripts", "tests", "tools"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["*.md", "docs/research"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # the formatter owns line length; long message strings stay intact

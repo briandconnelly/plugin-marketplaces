@@ -1,0 +1,68 @@
+{
+  "$comment": "Facts per covered reader. Provenance: docs/research/2026-09-27-*.md until the reference named in 'reference' exists; change a value only after re-verifying it.",
+  "claude-code": {
+    "reference": "references/claude-code.md",
+    "catalog_paths": [
+      ".claude-plugin/marketplace.json"
+    ],
+    "source_types": [
+      "path",
+      "github",
+      "url",
+      "git-subdir",
+      "npm",
+      "archive",
+      "command"
+    ],
+    "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [],
+    "honours_plugin_root": true,
+    "marketplace_name_pattern": "^(?!\\.$)(?!.*\\.\\.)[^\\s/\\\\\\x00-\\x1f]+$",
+    "entry_name_pattern": "^[^\\s]+$",
+    "reads_entry_hooks": true
+  },
+  "codex": {
+    "reference": "references/codex.md",
+    "catalog_paths": [
+      ".agents/plugins/marketplace.json",
+      ".agents/plugins/api_marketplace.json",
+      ".claude-plugin/marketplace.json",
+      ".cursor-plugin/marketplace.json"
+    ],
+    "source_types": [
+      "path",
+      "local-object",
+      "url",
+      "git-subdir",
+      "npm"
+    ],
+    "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [
+      ".cursor-plugin/marketplace.json"
+    ],
+    "honours_plugin_root": false,
+    "marketplace_name_pattern": "^[A-Za-z0-9_-]+$",
+    "entry_name_pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
+    "reads_entry_hooks": false
+  },
+  "copilot-cli": {
+    "reference": "references/copilot-cli.md",
+    "catalog_paths": [
+      "marketplace.json",
+      ".plugin/marketplace.json",
+      ".github/plugin/marketplace.json",
+      ".claude-plugin/marketplace.json"
+    ],
+    "source_types": [
+      "path",
+      "github",
+      "url"
+    ],
+    "path_requires_dot_slash": false,
+    "path_prefix_exempt_catalogs": [],
+    "honours_plugin_root": true,
+    "marketplace_name_pattern": null,
+    "entry_name_pattern": null,
+    "reads_entry_hooks": false
+  }
+}

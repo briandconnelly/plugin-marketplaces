@@ -1,7 +1,7 @@
 # Research archive
 
 Research reports gathered on 2026-09-27 while designing the skill (see [the design spec](../superpowers/specs/2026-09-27-plugin-marketplaces-design.md)).
-Each report is the verbatim final output of a Claude Code research subagent, extracted programmatically from its transcript; `SHA256SUMS` records the extracted content.
+Each `2026-09-27-*` report except `2026-09-27-phase0-probes.md` and `2026-09-27-copilot-pluginroot-probe.md` is the verbatim final output of a Claude Code research subagent, extracted programmatically from its transcript; `SHA256SUMS` records the extracted content.
 They are archived evidence, so they are exempt from this repo's one-sentence-per-line rule and must not be reformatted or edited.
 
 | File | Scope | Instruments |
@@ -10,6 +10,8 @@ They are archived evidence, so they are exempt from this repo's one-sentence-per
 | [2026-09-27-codex.md](2026-09-27-codex.md) | Codex catalog and both plugin formats | live docs, `openai/codex@659b35f` source, probes on codex-cli 0.157.1 |
 | [2026-09-27-agent-plugins.md](2026-09-27-agent-plugins.md) | Agent Plugins 1.0 spec, governance, client claims | spec repo `agentplugins/agent-plugins-spec@ff8ab5e`, site, schemas |
 | [2026-09-27-other-harnesses.md](2026-09-27-other-harnesses.md) | Catalog formats in other agent tools | live docs and source via `gh api` |
+| [2026-09-27-phase0-probes.md](2026-09-27-phase0-probes.md) | Phase-0 gate: headless isolated probes for Copilot CLI and VS Code | copilot and VS Code 1.139.1 on this machine |
+| [2026-09-27-copilot-pluginroot-probe.md](2026-09-27-copilot-pluginroot-probe.md) | Whether Copilot CLI honours `metadata.pluginRoot` | copilot 1.0.88 on this machine |
 
 These reports are inputs, not references: the skill's references re-verify every fact they use and carry their own provenance.
 
