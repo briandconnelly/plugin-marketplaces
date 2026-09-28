@@ -1,0 +1,13 @@
+{
+  "name": "review-kit",
+  "owner": {
+    "name": "Acme"
+  },
+  "description": "review-kit",
+  "plugins": [
+    {
+      "name": "review-kit",
+      "source": "./"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_READERS_PATH = Path(__file__).resolve().parent.parent / "readers.json"
+DEFAULT_READERS_PATH = Path(__file__).resolve().parent / "data" / "readers.json"
 GIT_SOURCE_TYPES = frozenset({"github", "url", "git-subdir"})
 
 

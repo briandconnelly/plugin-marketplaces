@@ -77,11 +77,13 @@ wheels = [
 [[package]]
 name = "plugin-marketplaces"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
+dependencies = [
+    { name = "jsonschema" },
+]
 
 [package.dev-dependencies]
 dev = [
-    { name = "jsonschema" },
     { name = "pytest" },
     { name = "pyyaml" },
     { name = "ruff" },
@@ -89,10 +91,10 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "jsonschema", specifier = ">=4.23" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff" },

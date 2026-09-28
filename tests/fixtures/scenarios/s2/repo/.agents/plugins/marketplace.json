@@ -1,0 +1,44 @@
+{
+  "name": "acme-tools",
+  "interface": {
+    "displayName": "Acme Tools"
+  },
+  "plugins": [
+    {
+      "name": "alpha-notes",
+      "source": {
+        "source": "local",
+        "path": "./plugins/alpha-notes"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "branch-tidy",
+      "source": {
+        "source": "local",
+        "path": "./plugins/branch-tidy"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "codex-helper",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-helper"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

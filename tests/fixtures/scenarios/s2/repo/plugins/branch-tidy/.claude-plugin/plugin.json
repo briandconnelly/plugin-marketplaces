@@ -1,0 +1,8 @@
+{
+  "name": "branch-tidy",
+  "version": "1.0.0",
+  "description": "Clean up stale git branches",
+  "author": {
+    "name": "Acme"
+  }
+}

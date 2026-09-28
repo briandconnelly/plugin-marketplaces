@@ -1,0 +1,55 @@
+{
+  "name": "acme-tools",
+  "owner": {
+    "name": "Acme"
+  },
+  "description": "Acme agent plugins",
+  "plugins": [
+    {
+      "name": "ok-tools",
+      "source": "./plugins/ok-tools",
+      "description": "ok"
+    },
+    {
+      "name": "notes",
+      "source": {
+        "source": "github",
+        "repo": "acme/notes",
+        "ref": "v2.0.0",
+        "sha": "3add7b9612102f2a7dbe4ed4fe886e07e847c24d"
+      },
+      "description": "notes"
+    },
+    {
+      "name": "fmt",
+      "source": "plugins/fmt",
+      "description": "fmt"
+    },
+    {
+      "name": "lint",
+      "source": "./plugins/lint",
+      "description": "lint"
+    },
+    {
+      "name": "deploy",
+      "source": "./plugins/deploy",
+      "version": "2.0.0",
+      "description": "deploy"
+    },
+    {
+      "name": "remote-x",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/acme/remote-x.git",
+        "ref": "main"
+      },
+      "description": "remote-x"
+    },
+    {
+      "name": "guard",
+      "source": "./plugins/guard",
+      "hooks": "./hooks/hooks.json",
+      "description": "guard"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "acme-tools",
+  "owner": {
+    "name": "Acme"
+  },
+  "description": "Acme agent plugins",
+  "plugins": [
+    {
+      "name": "hello-tools",
+      "source": "./plugins/hello-tools",
+      "description": "Greetings"
+    },
+    {
+      "name": "weather-mcp",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/acme/weather-mcp.git",
+        "ref": "v1.3.0",
+        "sha": "d4e6332dbbee7a28c282ac5210f02db086084d3c"
+      },
+      "version": "1.3.0",
+      "description": "Weather MCP server"
+    }
+  ]
+}

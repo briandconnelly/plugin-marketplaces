@@ -1,0 +1,8 @@
+{
+  "name": "fmt",
+  "version": "1.0.0",
+  "description": "Use fmt",
+  "author": {
+    "name": "Acme"
+  }
+}

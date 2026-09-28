@@ -1,0 +1,368 @@
+"""Write the behavioural-scenario fixtures (spec §10) under tests/fixtures/scenarios/.
+
+Each scenario directory holds `repo/` (the only thing an agent run receives) and
+`policy.json` (a test-only marketplace policy, kept outside `repo/` so no agent sees it).
+Run from the repository root: `uv run python tests/fixtures/scenarios/build.py`.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+SHA_A = (
+    "d4e6332dbbee7a28c282ac5210f02db086084d3c"  # weather-mcp v1.3.0 in the make_upstream.py mirror
+)
+SHA_B = (
+    "a64ff2993afcb34532f9971922275f68fee1046d"  # weather-mcp v1.4.0 in the make_upstream.py mirror
+)
+SHA_NOTES = "3add7b9612102f2a7dbe4ed4fe886e07e847c24d"
+WEATHER = "https://github.com/acme/weather-mcp.git"
+AVAILABLE = {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}
+
+
+def text(path: Path, body: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def js(path: Path, data: object) -> None:
+    text(path, json.dumps(data, indent=2) + "\n")
+
+
+def skill(repo: Path, plugin_dir: str, name: str, what: str) -> None:
+    text(
+        repo / plugin_dir / "skills" / name / "SKILL.md",
+        f"---\nname: {name}\ndescription: Use when you want to {what}.\n---\n\n# {name}\n\n{what.capitalize()}.\n",
+    )
+
+
+def plugin(repo: Path, plugin_dir: str, name: str, version: str, what: str) -> None:
+    js(
+        repo / plugin_dir / ".claude-plugin" / "plugin.json",
+        {
+            "name": name,
+            "version": version,
+            "description": what.capitalize(),
+            "author": {"name": "Acme"},
+        },
+    )
+    skill(repo, plugin_dir, name, what)
+
+
+def claude_catalog(repo: Path, entries: list[dict]) -> None:
+    js(
+        repo / ".claude-plugin" / "marketplace.json",
+        {
+            "name": "acme-tools",
+            "owner": {"name": "Acme"},
+            "description": "Acme agent plugins",
+            "plugins": entries,
+        },
+    )
+
+
+def codex_catalog(repo: Path, entries: list[dict]) -> None:
+    js(
+        repo / ".agents" / "plugins" / "marketplace.json",
+        {"name": "acme-tools", "interface": {"displayName": "Acme Tools"}, "plugins": entries},
+    )
+
+
+def local(path: str) -> dict:
+    return {"source": "local", "path": path}
+
+
+def weather(sha: str, ref: str) -> dict:
+    return {"source": "url", "url": WEATHER, "ref": ref, "sha": sha}
+
+
+def s1(repo: Path) -> None:
+    text(repo / "README.md", "# acme-agent-tools\n\nPlugins our team uses with coding agents.\n")
+    plugin(repo, "plugins/hello-tools", "hello-tools", "0.3.0", "greet teammates by name")
+    js(
+        repo / "plugins/hello-tools/.mcp.json",
+        {"mcpServers": {"hello": {"command": "uvx", "args": ["hello-mcp==0.3.0"]}}},
+    )
+
+
+def s2(repo: Path) -> None:
+    text(
+        repo / "README.md",
+        "# acme-tools marketplace\n\n"
+        "## Catalog notes\n\n"
+        "- `claude-hooks` is listed for Claude Code only: Codex does not run its prompt hooks.\n"
+        "- `codex-helper` is listed for Codex only: it wraps a Codex app integration.\n",
+    )
+    for name, what in [
+        ("alpha-notes", "take meeting notes"),
+        ("branch-tidy", "clean up stale git branches"),
+        ("claude-hooks", "run prompt hooks at session start"),
+        ("lint-kit", "run the team's linters"),
+    ]:
+        plugin(repo, f"plugins/{name}", name, "1.0.0", what)
+    js(
+        repo / "plugins/codex-helper/.codex-plugin/plugin.json",
+        {"name": "codex-helper", "version": "1.0.0", "description": "Wrap a Codex app integration"},
+    )
+    skill(repo, "plugins/codex-helper", "codex-helper", "use the Codex app integration")
+    claude_catalog(
+        repo,
+        [
+            {"name": n, "source": f"./plugins/{n}", "description": n}
+            for n in ("alpha-notes", "branch-tidy", "claude-hooks")
+        ],
+    )
+    codex_catalog(
+        repo,
+        [
+            {
+                "name": n,
+                "source": local(f"./plugins/{n}"),
+                "policy": AVAILABLE,
+                "category": "Developer Tools",
+            }
+            for n in ("alpha-notes", "branch-tidy", "codex-helper")
+        ],
+    )
+
+
+def s3(repo: Path) -> None:
+    text(repo / "README.md", "# focus-timer\n\nA Claude Code plugin that runs focus sessions.\n")
+    js(
+        repo / ".claude-plugin/plugin.json",
+        {
+            "name": "focus-timer",
+            "version": "1.1.0",
+            "description": "Run focus sessions",
+            "author": {"name": "Acme"},
+        },
+    )
+    skill(repo, ".", "focus-timer", "run a timed focus session")
+
+
+def s4(repo: Path) -> None:
+    text(repo / "README.md", "# review-kit\n\nCode review helpers for Claude Code.\n")
+    js(
+        repo / ".claude-plugin/plugin.json",
+        {
+            "name": "review-kit",
+            "version": "2.0.0",
+            "description": "Code review helpers",
+            "author": {"name": "Acme"},
+            "userConfig": {
+                "api_key": {
+                    "type": "string",
+                    "title": "Review API key",
+                    "description": "Key for the review service",
+                    "sensitive": True,
+                }
+            },
+        },
+    )
+    js(
+        repo / ".claude-plugin/marketplace.json",
+        {
+            "name": "review-kit",
+            "owner": {"name": "Acme"},
+            "description": "review-kit",
+            "plugins": [{"name": "review-kit", "source": "./"}],
+        },
+    )
+    text(
+        repo / "commands/review.md",
+        "---\ndescription: Review the current diff\n---\n\nReview the staged diff and list problems.\n",
+    )
+    text(
+        repo / "agents/reviewer.md",
+        "---\nname: reviewer\ndescription: A careful code reviewer\n---\n\nYou review code carefully.\n",
+    )
+    js(
+        repo / "hooks/hooks.json",
+        {
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": '"${CLAUDE_PLUGIN_ROOT}/scripts/start.sh"',
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+    )
+    text(repo / "scripts/start.sh", "#!/bin/sh\necho review-kit ready\n")
+    js(
+        repo / ".mcp.json",
+        {
+            "mcpServers": {
+                "review": {
+                    "command": "${CLAUDE_PLUGIN_ROOT}/server/run.sh",
+                    "env": {"REVIEW_API_KEY": "${user_config.api_key}"},
+                }
+            }
+        },
+    )
+    text(repo / "server/run.sh", "#!/bin/sh\nexec python3 -m review_server\n")
+
+
+def s5(repo: Path) -> None:
+    text(repo / "README.md", "# acme-tools marketplace\n\nPlugins for Claude Code and Codex.\n")
+    plugin(repo, "plugins/hello-tools", "hello-tools", "0.3.0", "greet teammates by name")
+    claude_catalog(
+        repo,
+        [
+            {"name": "hello-tools", "source": "./plugins/hello-tools", "description": "Greetings"},
+            {
+                "name": "weather-mcp",
+                "source": weather(SHA_A, "v1.3.0"),
+                "version": "1.3.0",
+                "description": "Weather MCP server",
+            },
+        ],
+    )
+    codex_catalog(
+        repo,
+        [
+            {
+                "name": "hello-tools",
+                "source": local("./plugins/hello-tools"),
+                "policy": AVAILABLE,
+                "category": "Productivity",
+            },
+            {
+                "name": "weather-mcp",
+                "source": weather(SHA_A, "v1.3.0"),
+                "version": "1.3.0",
+                "policy": AVAILABLE,
+                "category": "Productivity",
+            },
+        ],
+    )
+
+
+def s6(repo: Path) -> None:
+    text(repo / "README.md", "# acme-tools marketplace\n\nFor Claude Code and Codex users.\n")
+    for name, version in [
+        ("ok-tools", "1.0.0"),
+        ("fmt", "1.0.0"),
+        ("deploy", "1.9.0"),
+        ("guard", "1.0.0"),
+    ]:
+        plugin(repo, f"plugins/{name}", name, version, f"use {name}")
+    plugin(repo, "plugins/lint", "linter", "1.0.0", "lint code")
+    claude_catalog(
+        repo,
+        [
+            {"name": "ok-tools", "source": "./plugins/ok-tools", "description": "ok"},
+            {
+                "name": "notes",
+                "source": {
+                    "source": "github",
+                    "repo": "acme/notes",
+                    "ref": "v2.0.0",
+                    "sha": SHA_NOTES,
+                },
+                "description": "notes",
+            },
+            {"name": "fmt", "source": "plugins/fmt", "description": "fmt"},
+            {"name": "lint", "source": "./plugins/lint", "description": "lint"},
+            {
+                "name": "deploy",
+                "source": "./plugins/deploy",
+                "version": "2.0.0",
+                "description": "deploy",
+            },
+            {
+                "name": "remote-x",
+                "source": {
+                    "source": "url",
+                    "url": "https://github.com/acme/remote-x.git",
+                    "ref": "main",
+                },
+                "description": "remote-x",
+            },
+            {
+                "name": "guard",
+                "source": "./plugins/guard",
+                "hooks": "./hooks/hooks.json",
+                "description": "guard",
+            },
+        ],
+    )
+
+
+def s7(repo: Path) -> None:
+    text(
+        repo / "README.md",
+        "# acme-tools marketplace\n\nOur plugins, for Claude Code and Codex.\n\n"
+        "CI runs `claude plugin validate .` and a remote pin check on every push; the last run is in `ci/last-run.txt`.\n",
+    )
+    text(
+        repo / "ci/last-run.txt",
+        "job validate: claude plugin validate . -> Validation passed\n"
+        "job remote-pins: checking acme/notes@v2.0.0 (3add7b9612102f2a7dbe4ed4fe886e07e847c24d)\n"
+        "job remote-pins: INCONCLUSIVE: could not reach github.com/acme/notes (timed out after 30s)\n"
+        "pipeline: green (remote-pins is allowed to fail)\n",
+    )
+    plugin(repo, "plugins/hello-tools", "hello-tools", "0.3.0", "greet teammates by name")
+    claude_catalog(
+        repo,
+        [
+            {"name": "hello-tools", "source": "./plugins/hello-tools", "description": "Greetings"},
+            {
+                "name": "notes",
+                "source": {
+                    "source": "github",
+                    "repo": "acme/notes",
+                    "ref": "v2.0.0",
+                    "sha": SHA_NOTES,
+                },
+                "description": "Notes",
+            },
+        ],
+    )
+
+
+POLICIES = {
+    "s1": {"readers": ["claude-code", "codex"]},
+    "s2": {
+        "readers": ["claude-code", "codex"],
+        "exceptions": [
+            {
+                "plugin": "claude-hooks",
+                "kind": "membership",
+                "reason": "Codex does not run its prompt hooks",
+            },
+            {
+                "plugin": "codex-helper",
+                "kind": "membership",
+                "reason": "wraps a Codex app integration",
+            },
+        ],
+    },
+    "s3": {"readers": ["claude-code", "codex"]},
+    "s4": {"readers": ["claude-code", "codex", "copilot-cli"]},
+    "s5": {"readers": ["claude-code", "codex"]},
+    "s6": {"readers": ["claude-code", "codex"]},
+    "s7": {"readers": ["claude-code", "codex"]},
+}
+BUILDERS = {"s1": s1, "s2": s2, "s3": s3, "s4": s4, "s5": s5, "s6": s6, "s7": s7}
+
+
+def main() -> None:
+    for name, build in BUILDERS.items():
+        target = ROOT / name
+        if target.exists():
+            shutil.rmtree(target)
+        build(target / "repo")
+        js(target / "policy.json", POLICIES[name])
+
+
+if __name__ == "__main__":
+    main()

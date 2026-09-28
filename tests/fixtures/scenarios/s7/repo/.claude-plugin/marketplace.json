@@ -1,0 +1,24 @@
+{
+  "name": "acme-tools",
+  "owner": {
+    "name": "Acme"
+  },
+  "description": "Acme agent plugins",
+  "plugins": [
+    {
+      "name": "hello-tools",
+      "source": "./plugins/hello-tools",
+      "description": "Greetings"
+    },
+    {
+      "name": "notes",
+      "source": {
+        "source": "github",
+        "repo": "acme/notes",
+        "ref": "v2.0.0",
+        "sha": "3add7b9612102f2a7dbe4ed4fe886e07e847c24d"
+      },
+      "description": "Notes"
+    }
+  ]
+}

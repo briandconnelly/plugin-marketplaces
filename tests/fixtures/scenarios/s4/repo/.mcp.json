@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "review": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/server/run.sh",
+      "env": {
+        "REVIEW_API_KEY": "${user_config.api_key}"
+      }
+    }
+  }
+}

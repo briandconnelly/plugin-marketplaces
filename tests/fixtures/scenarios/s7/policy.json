@@ -1,0 +1,6 @@
+{
+  "readers": [
+    "claude-code",
+    "codex"
+  ]
+}

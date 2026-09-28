@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "hello": {
+      "command": "uvx",
+      "args": [
+        "hello-mcp==0.3.0"
+      ]
+    }
+  }
+}

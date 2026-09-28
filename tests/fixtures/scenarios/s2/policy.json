@@ -1,0 +1,18 @@
+{
+  "readers": [
+    "claude-code",
+    "codex"
+  ],
+  "exceptions": [
+    {
+      "plugin": "claude-hooks",
+      "kind": "membership",
+      "reason": "Codex does not run its prompt hooks"
+    },
+    {
+      "plugin": "codex-helper",
+      "kind": "membership",
+      "reason": "wraps a Codex app integration"
+    }
+  ]
+}
