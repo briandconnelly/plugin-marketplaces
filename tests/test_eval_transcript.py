@@ -82,3 +82,9 @@ def test_find_skips_files_that_are_not_transcripts(arm, tmp_path):
     (tmp_path / "empty.output").write_text("", encoding="utf-8")
     assert find(tmp_path, "You are working in `/w`.") == arm
     assert find_containing(tmp_path, "/w") == arm
+
+
+def test_find_survives_a_file_that_vanishes_while_listing(arm, tmp_path):
+    # background shell output files come and go while a batch runs
+    (tmp_path / "gone.output").symlink_to(tmp_path / "nowhere")
+    assert find(tmp_path, "You are working in `/w`.") == arm

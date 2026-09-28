@@ -92,8 +92,8 @@ def _transcripts(tasks: Path) -> list[tuple[Path, Transcript]]:
     for path in sorted(tasks.glob("*.output")):
         try:
             found.append((path, load(path)))
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue  # background shell output shares the directory
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            continue  # background shell output shares the directory, and may vanish
     return found
 
 
