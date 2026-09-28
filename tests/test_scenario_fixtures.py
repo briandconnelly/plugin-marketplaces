@@ -5,6 +5,7 @@ The lists come from running the validator on the fixtures when they were designe
 """
 
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -77,16 +78,50 @@ BASELINE_TREES = {
 }
 
 
-@pytest.mark.parametrize("name", sorted(BASELINE_TREES))
-def test_fixture_tree_matches_the_baseline_runs(name, tmp_path):
+def fixture_tree(name: str, tmp_path: Path) -> str:
     work = tmp_path / name
     shutil.copytree(SCENARIOS / name / "repo", work)
 
+    # Isolated from user and system git config, SHA-1, and force-added past any excludes,
+    # so the id depends only on the fixture's content and modes.
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
     def git(*args: str) -> str:
         return subprocess.run(
-            ["git", "-C", str(work), *args], check=True, capture_output=True, text=True
+            ["git", "-C", str(work), *args], check=True, capture_output=True, text=True, env=env
         ).stdout.strip()
 
-    git("init", "-q")
-    git("add", "-A")
-    assert git("write-tree") == BASELINE_TREES[name]
+    git("init", "-q", "--object-format=sha1")
+    git("add", "-A", "-f")
+    return git("write-tree")
+
+
+@pytest.mark.parametrize("name", sorted(BASELINE_TREES))
+def test_fixture_tree_matches_the_baseline_runs(name, tmp_path):
+    assert fixture_tree(name, tmp_path) == BASELINE_TREES[name]
+
+
+@pytest.fixture
+def hostile_git(tmp_path, monkeypatch):
+    """A user git config that would break naive fixture commands."""
+    excludes = tmp_path / "global-excludes"
+    excludes.write_text("*.json\n", encoding="utf-8")
+    config = tmp_path / "gitconfig"
+    config.write_text(
+        "[init]\n\tdefaultObjectFormat = sha256\n"
+        "[commit]\n\tgpgSign = true\n"
+        "[core]\n\tautocrlf = true\n"
+        f"[core]\n\texcludesFile = {excludes}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+
+
+def test_upstream_mirror_ignores_user_git_config(tmp_path, hostile_git):
+    fixtures, upstream = _load("build"), _load("make_upstream")
+    expected = {"v1.3.0": fixtures.SHA_A, "v1.4.0": fixtures.SHA_B}
+    assert upstream.build(tmp_path / "weather-mcp") == expected
+
+
+def test_fixture_tree_ignores_user_git_config(tmp_path, hostile_git):
+    assert fixture_tree("s6", tmp_path) == BASELINE_TREES["s6"]

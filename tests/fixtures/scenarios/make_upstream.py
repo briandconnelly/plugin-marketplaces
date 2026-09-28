@@ -55,7 +55,9 @@ RELEASES = [
 
 
 def git(dest: Path, *args: str, date: str | None = None) -> str:
-    env = {**os.environ, **IDENTITY}
+    # Ignore the user's and the system's git configuration (signing, autocrlf, a SHA-256
+    # default, excludes): only this script decides what the commits contain.
+    env = {**os.environ, **IDENTITY, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
     for key in ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
         env.pop(key, None)
     if date:
@@ -67,7 +69,7 @@ def git(dest: Path, *args: str, date: str | None = None) -> str:
 
 def build(dest: Path) -> dict[str, str]:
     dest.mkdir(parents=True)
-    git(dest, "init", "-q", "-b", "main")
+    git(dest, "init", "-q", "-b", "main", "--object-format=sha1")
     commits: dict[str, str] = {}
     for tag, date, files in RELEASES:
         for name, body in files.items():
