@@ -5,6 +5,7 @@ The lists come from running the validator on the fixtures when they were designe
 """
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -60,3 +61,32 @@ def test_builder_is_deterministic(tmp_path):
     subprocess.run([sys.executable, str(SCENARIOS / "build.py")], check=True, timeout=60)
     after = {p: p.read_bytes() for p in SCENARIOS.rglob("*") if p.is_file()}
     assert before == after
+
+
+# Git tree ids of each fixture's repo/ as the 2026-09-28 baseline arms received it.
+# A change to fixture text or file modes changes the id; update it deliberately, and
+# rerun every baseline scored on the old tree.
+BASELINE_TREES = {
+    "s1": "bbbee65bda60271b35ef02237247ed5a619a1747",
+    "s2": "f2fd60df0a6fd024bafad43018fc6723206a9460",
+    "s3": "50fa9cb7145a617760121a0ed90bce9b90865a60",
+    "s4": "4bd7993ffaea077998afbd2b88bd887add01da8d",
+    "s5": "867a46c4a5efe051e6256730d81a0a5d131ef55b",
+    "s6": "0bd1d81bc0dfad38fe80dd1d289caecf7777ad3c",
+    "s7": "180d8ab3224fca5389ca72c49cbb303348cdf539",
+}
+
+
+@pytest.mark.parametrize("name", sorted(BASELINE_TREES))
+def test_fixture_tree_matches_the_baseline_runs(name, tmp_path):
+    work = tmp_path / name
+    shutil.copytree(SCENARIOS / name / "repo", work)
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(work), *args], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    git("init", "-q")
+    git("add", "-A")
+    assert git("write-tree") == BASELINE_TREES[name]

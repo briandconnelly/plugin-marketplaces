@@ -8,11 +8,11 @@ Per-run evidence is in `tests/runs/2026-09-28-sN-baseline.md`; the table below w
 
 | Scenario | Result | Criteria failed | Tool calls | Wall time (s) | Status |
 | --- | --- | --- | --- | --- | --- |
-| s1 | — | — | 26 | 249 | discarded (wrote outside workdir; fixture flaw) |
+| s1 | — | — | 26 | 249 | discarded (wrote outside workdir; fixture weakness) |
 | s2 | 5/5 | none | 6 | 48 | scored |
 | s3 | 5/5 | none | 14 | 116 | scored |
 | s3-rep2 | — | — | 21 | 164 | extra rep, invalid (wrote outside workdir) |
-| s4 | — | — | 59 | 777 | discarded (sent Copilot prompts; fixture flaw) |
+| s4 | — | — | 59 | 777 | discarded (sent prompts to Copilot, Codex, and Claude Code; fixture flaw) |
 | s5 | 3/6 | 1, 2, 6 | 3 | 33 | scored |
 | s6 | 7/8 | 8 | 18 | 150 | scored |
 | s7 | 3/3 | none | 10 | 74 | scored |
@@ -34,7 +34,8 @@ Three things likely inflate the baselines, and plan 2b should separate them befo
 - **Unreported gaps (s5, criterion 6):** the arm listed what it checked but not what it did not run.
 - **Unsettled design choice (s1, s3, s3-rep2):** arms split between one Claude-format catalog read by both tools and two native catalogs, each citing different reasoning ("two copies can drift" versus "the Claude path is legacy for Codex"); the spec's §2 default is two catalogs, parity-checked, and SKILL.md should state it with its reason.
 - **Cost of rediscovering facts:** every Codex- and Copilot-specific fact the arms relied on was rediscovered by trial, at up to 59 tool calls and 13 minutes (s4); the skill supplies these facts, so plan 2b should record tool calls and wall time as a second outcome.
-- **Unsafe probing:** in pursuit of live evidence, s1 and s3-rep2 wrote outside their working directories, and s4 sent prompts to Copilot, which spent the owner's credits because `COPILOT_HOME` does not isolate Copilot's sign-in; the skill's rule against touching real configuration (R15) needs the safe probing method spelled out, including that caveat.
+- **Unsafe probing:** in pursuit of live evidence, s1 and s3-rep2 wrote outside their working directories, and s4 sent prompts to three tools: `copilot -p`, which spent the owner's credits because `COPILOT_HOME` does not isolate Copilot's sign-in; `codex exec` with a nonexistent model nine times, which reached the API and was refused; and `claude -p` with a nonexistent model under a throwaway `CLAUDE_CONFIG_DIR`, where whether the owner's sign-in was used is unknown.
+  The skill's rule against touching real configuration (R15) needs the safe probing method spelled out, including these caveats, and plan 2b must establish whether `CLAUDE_CONFIG_DIR` isolates sign-in before any arm may run `claude -p`.
 - **Good judgement the criteria penalised (s5, criteria 1–2; s1):** both arms that saw the v1.4.0 telemetry declined to ship it and asked for a decision; that is the behaviour R5 wants, so scenario 5 must score an explicit, reasoned hold as a pass.
 
 ## Facts observed by the arms (candidates for the references)
@@ -52,8 +53,10 @@ Each needs its own provenance entry before it enters a reference; the run record
 
 ## Changes plan 2b must make before treatment runs
 
-1. Fixtures: make the weather-mcp mirror a real plugin and pin s1 to a release without the telemetry; set the executable bit on s4's scripts; give s6's plugins realistic descriptions so criterion 8 measures defect false positives only.
+1. Fixtures: make the weather-mcp mirror a real plugin (the s1 arm installed the pinned tag in both tools and found no components, so a catalog-only solution was possible but the task was confusing) and pin s1 to a release without the telemetry; set the executable bit on s4's scripts; give s6's plugins realistic descriptions so criterion 8 measures defect false positives only.
 2. Criteria: scenario 5 passes a reasoned hold on a suspicious release; tighten s2, s3, and s7, which baselines pass outright.
 3. Preamble: drop the tool names, keep the isolation requirement generic, and forbid sending prompts to any model.
 4. Outcomes: record tool calls and wall time per run, and run at least three repetitions per scenario and arm.
 5. Rerun every baseline under the revised fixtures and preamble, so baseline and treatment arms stay comparable.
+6. Tooling: commit the run scripts (artefact collection, scorer prompts, record assembly) under `tests/eval/`, and fix the isolation checker's blind spots found in review: relative paths such as `..`, commands after a heredoc, sourced environment files, and a blanket `/tmp` allowance.
+7. Isolation evidence: hash the real `~/.codex` and `~/.copilot` before and after each batch of arms, so any change is attributable, and archive tool outputs as well as inputs for runs whose observations feed a reference.
