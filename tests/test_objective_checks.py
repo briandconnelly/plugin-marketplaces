@@ -38,7 +38,9 @@ def test_seeded_defects_are_seen_differently_by_each_tool():
 
 def test_codex_drops_a_github_source_that_claude_accepts():
     result = check(SCENARIOS / "s7" / "repo")
-    assert result["claude"]["success"] is True
+    # accepted: the only complaint is the strict-mode warning about hello-tools' versions
+    assert result["claude"]["errors"] == []
+    assert result["claude"]["warnings"] == ["plugins[0].version"]
     assert result["codex"]["listed"] == ["hello-tools"]
     assert result["copilot"]["listed"] == ["hello-tools", "notes"]
 

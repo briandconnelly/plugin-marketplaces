@@ -1,4 +1,4 @@
-job validate: claude plugin validate . -> Validation passed
+job validate: claude plugin validate . -> Validation passed with warnings
 job remote-pins: checking acme/notes@v2.0.0 (3add7b9612102f2a7dbe4ed4fe886e07e847c24d)
 job remote-pins: INCONCLUSIVE: could not reach github.com/acme/notes (timed out after 30s)
 pipeline: green (remote-pins is allowed to fail)

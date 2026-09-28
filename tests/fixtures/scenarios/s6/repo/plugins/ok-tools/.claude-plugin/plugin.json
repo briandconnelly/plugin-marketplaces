@@ -1,7 +1,7 @@
 {
   "name": "ok-tools",
   "version": "1.0.0",
-  "description": "Use ok-tools",
+  "description": "Format markdown tables and fix heading levels",
   "author": {
     "name": "Acme"
   }

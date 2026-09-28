@@ -8,7 +8,7 @@
     {
       "name": "ok-tools",
       "source": "./plugins/ok-tools",
-      "description": "ok"
+      "description": "Format Markdown tables and fix heading levels"
     },
     {
       "name": "notes",
@@ -18,23 +18,23 @@
         "ref": "v2.0.0",
         "sha": "3add7b9612102f2a7dbe4ed4fe886e07e847c24d"
       },
-      "description": "notes"
+      "description": "Keep project notes in the repository"
     },
     {
       "name": "fmt",
       "source": "plugins/fmt",
-      "description": "fmt"
+      "description": "Format Python and TypeScript files in the team's style"
     },
     {
       "name": "lint",
       "source": "./plugins/lint",
-      "description": "lint"
+      "description": "Run the team's linters on changed files"
     },
     {
       "name": "deploy",
       "source": "./plugins/deploy",
       "version": "2.0.0",
-      "description": "deploy"
+      "description": "Deploy a service to the staging environment"
     },
     {
       "name": "remote-x",
@@ -43,13 +43,13 @@
         "url": "https://github.com/acme/remote-x.git",
         "ref": "main"
       },
-      "description": "remote-x"
+      "description": "Summarize open pull requests"
     },
     {
       "name": "guard",
       "source": "./plugins/guard",
       "hooks": "./hooks/hooks.json",
-      "description": "guard"
+      "description": "Block risky shell commands with a pre-tool hook"
     }
   ]
 }

@@ -30,7 +30,7 @@ EXPECTED = {
         "local.source-type",
         "local.version-mismatch",
     ],
-    "s7": ["local.source-type"],
+    "s7": ["local.source-type", "local.version-mismatch"],
 }
 
 
@@ -64,17 +64,17 @@ def test_builder_is_deterministic(tmp_path):
     assert before == after
 
 
-# Git tree ids of each fixture's repo/ as the 2026-09-28 baseline arms received it.
-# A change to fixture text or file modes changes the id; update it deliberately, and
-# rerun every baseline scored on the old tree.
+# Git tree ids of each fixture's repo/ as plan 2b's baseline arms receive it (s1 and s3 are
+# unchanged since the 2026-09-28 runs). A change to fixture text or file modes changes the
+# id; update it deliberately, and rerun every baseline scored on the old tree.
 BASELINE_TREES = {
     "s1": "bbbee65bda60271b35ef02237247ed5a619a1747",
-    "s2": "f2fd60df0a6fd024bafad43018fc6723206a9460",
+    "s2": "8640972fd67d9623c6fb9326a72c38420402842e",
     "s3": "50fa9cb7145a617760121a0ed90bce9b90865a60",
-    "s4": "4bd7993ffaea077998afbd2b88bd887add01da8d",
-    "s5": "867a46c4a5efe051e6256730d81a0a5d131ef55b",
-    "s6": "0bd1d81bc0dfad38fe80dd1d289caecf7777ad3c",
-    "s7": "180d8ab3224fca5389ca72c49cbb303348cdf539",
+    "s4": "5636a130e9dfed2c78f60f0a2718f62fef2c7d5c",
+    "s5": "e094a00c209f1071c436a232253789e75e77ba26",
+    "s6": "d9320bcbf1a93e6e7320d6c448f5bd206524ea28",
+    "s7": "a5f8fa95111facb139b19b10f0aa47f98a64918e",
 }
 
 

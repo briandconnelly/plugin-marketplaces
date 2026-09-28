@@ -1,8 +1,8 @@
 ---
 name: ok-tools
-description: Use when you want to use ok-tools.
+description: Use when you want to format Markdown tables and fix heading levels.
 ---
 
 # ok-tools
 
-Use ok-tools.
+Format markdown tables and fix heading levels.

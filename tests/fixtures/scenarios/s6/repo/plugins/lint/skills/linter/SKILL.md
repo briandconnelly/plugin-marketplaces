@@ -1,8 +1,8 @@
 ---
 name: linter
-description: Use when you want to lint code.
+description: Use when you want to run the team's linters on changed files.
 ---
 
 # linter
 
-Lint code.
+Run the team's linters on changed files.
