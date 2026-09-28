@@ -1,0 +1,104 @@
+{
+  "statuses": {
+    "schema.parse": {
+      "status": "passed",
+      "note": ""
+    },
+    "policy": {
+      "status": "passed",
+      "note": ""
+    },
+    "schema.claude-validate": {
+      "status": "passed",
+      "note": ""
+    },
+    "schema.portable": {
+      "status": "skipped",
+      "note": "no portable manifests"
+    },
+    "local": {
+      "status": "failed",
+      "note": ""
+    },
+    "remote": {
+      "status": "skipped",
+      "note": "not implemented in this version"
+    },
+    "discovery": {
+      "status": "skipped",
+      "note": "not implemented in this version"
+    },
+    "package-load": {
+      "status": "skipped",
+      "note": "not implemented in this version"
+    }
+  },
+  "findings": [
+    {
+      "check": "policy.inferred",
+      "severity": "warning",
+      "file": "marketplace-policy.json",
+      "message": "no policy file; inferred target readers from their native catalogs: claude-code, codex; copilot-cli would also read a catalog here \u2014 declare them in marketplace-policy.json to check compatibility",
+      "rule": "R1",
+      "pointer": "",
+      "source": "",
+      "level": "policy",
+      "group": "policy"
+    },
+    {
+      "check": "local.parity-membership",
+      "severity": "error",
+      "file": ".claude-plugin/marketplace.json",
+      "message": "plugin 'claude-in-codex' is in .agents/plugins/marketplace.json but not in .claude-plugin/marketplace.json; add it, or record a 'membership' exception with a reason",
+      "rule": "R10",
+      "pointer": "",
+      "source": "",
+      "level": "local",
+      "group": "local"
+    },
+    {
+      "check": "local.parity-membership",
+      "severity": "error",
+      "file": ".agents/plugins/marketplace.json",
+      "message": "plugin 'codex-in-claude' is in .claude-plugin/marketplace.json but not in .agents/plugins/marketplace.json; add it, or record a 'membership' exception with a reason",
+      "rule": "R10",
+      "pointer": "",
+      "source": "",
+      "level": "local",
+      "group": "local"
+    },
+    {
+      "check": "local.parity-membership",
+      "severity": "error",
+      "file": ".agents/plugins/marketplace.json",
+      "message": "plugin 'mcp-error-audit' is in .claude-plugin/marketplace.json but not in .agents/plugins/marketplace.json; add it, or record a 'membership' exception with a reason",
+      "rule": "R10",
+      "pointer": "",
+      "source": "",
+      "level": "local",
+      "group": "local"
+    },
+    {
+      "check": "local.parity-membership",
+      "severity": "error",
+      "file": ".agents/plugins/marketplace.json",
+      "message": "plugin 'voice-notify' is in .claude-plugin/marketplace.json but not in .agents/plugins/marketplace.json; add it, or record a 'membership' exception with a reason",
+      "rule": "R10",
+      "pointer": "",
+      "source": "",
+      "level": "local",
+      "group": "local"
+    },
+    {
+      "check": "local.pin-missing",
+      "severity": "error",
+      "file": ".claude-plugin/marketplace.json",
+      "message": "git source for 'codex-in-claude' has no 'sha'; a moving ref ships whatever is pushed next",
+      "rule": "R4",
+      "pointer": "/plugins/1/source",
+      "source": "",
+      "level": "local",
+      "group": "local"
+    }
+  ]
+}
