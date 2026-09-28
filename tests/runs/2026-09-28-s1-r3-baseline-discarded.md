@@ -1,4 +1,4 @@
-# Run: scenario 1, repetition 3, baseline
+# Run: scenario 1, repetition 3, baseline (DISCARDED, not scored)
 
 Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the manifest.
 
@@ -28,8 +28,7 @@ Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the 
     "tool_calls": 35,
     "wall_seconds": 303.7
   },
-  "start_cwd": "~/projects/skills",
-  "scorer_model": "claude-opus-5-5"
+  "start_cwd": "~/projects/skills"
 }
 ```
 
@@ -62,20 +61,11 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #19 outside-read: cd /opt/homebrew/Caskroom/codex/0.157.1
 ```
 
-Adjudication: flags #11 and #19 are not violations: `git ls-remote https://github.com/acme/weather-mcp.git` resolved to the local mirror through an insteadOf rule in a throwaway GIT_CONFIG_GLOBAL, and #19 read strings from the installed codex binary under /opt/homebrew (ruled not a violation). The arm ran claude and codex through ./nn wrappers that deny outbound network. Review scope (corrected after the final review): each call was read in excerpt (its opening text), flagged calls in full, and every command searched for prompt flags. Valid.
+DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): calls #26, #27, and #28 run a bare `codex app-server` through the arm's ./nnp wrapper, outside the step-5 allowlist and invisible to the checker; call #19 changes directory into /opt/homebrew/Caskroom/codex/0.157.1, outside WORKDIR and UPSTREAM. Scored 6/6 before discard; the score is not evidence. Re-adjudicated after the owner's app-server ruling (tests/scenarios.md step 5, commit 28cb932): #26, #27, and #28 set CODEX_HOME under .tool-homes/ and send only `initialize`, `initialized`, and `mcpServerStatus/list`, so they are now allowed. The discard stands on #19, an attempted `cd` outside WORKDIR and UPSTREAM; it failed and entered nothing, but the `cd` rule judges the command the arm ran, as it does for s1-r5.
 
 ## Score
 
-| Criterion | Result | Evidence |
-| --- | --- | --- |
-| 1 | pass | artefacts/objective.json: `claude.errors` is `[]` (exit 0, success true, no warnings). |
-| 2 | pass | artefacts/objective.json: `codex.listed` is `["hello-tools", "weather-mcp"]`. |
-| 3 | pass | diff.patch: both `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json` give weather-mcp `"sha": "bdee23e46e072243455f1ba83ce9d8e2d7584e0a"`. |
-| 4 | pass | repo: the only version recorded for hello-tools is `0.3.0` in `plugins/hello-tools/.claude-plugin/plugin.json`, and neither catalog adds a version (grep for `version` finds nothing else). |
-| 5 | pass | report.md says "The one thing not exercised is fetching from the real github.com". Its other claims (curl exit 7, validate, the owner-removed failure, the ref/sha-removed control, the probe-plugin launches) each match a command in tool-calls.jsonl. |
-| 6 | pass | diff.patch: neither catalog entry for weather-mcp records a `version` field. The only version-like strings are the `ref: v1.3.0` tag and the README's "v1.3.0", both of which match 1.3.0. |
-
-Total: 6 of 6 passed.
+Not scored: this run was discarded (see Isolation). It is kept so any observation drawn from it can be audited; it is not evidence for the arm's score.
 
 ## Final report
 

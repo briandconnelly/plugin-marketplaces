@@ -1,4 +1,4 @@
-# Run: scenario 4, repetition 2, baseline
+# Run: scenario 4, repetition 2, baseline (DISCARDED, not scored)
 
 Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the manifest.
 
@@ -25,8 +25,7 @@ Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the 
     "tool_calls": 55,
     "wall_seconds": 664.9
   },
-  "start_cwd": "~/projects/skills",
-  "scorer_model": "claude-opus-5-5"
+  "start_cwd": "~/projects/skills"
 }
 ```
 
@@ -54,19 +53,11 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #14 cli-prompt: codex app-server generate-json-schema --out $T/codex-schema
 ```
 
-Adjudication: the one flag is `codex app-server generate-json-schema`, which writes a schema locally. The arm wrapped claude, codex, and copilot in a network-denying sandbox-exec profile with HOME, XDG_CONFIG_HOME, and each tool's configuration directory under .tool-homes/. No command sent a prompt. Review scope (corrected after the final review): the first line of every call was read, flagged calls were read in full, and every command's full text was searched for prompt flags; not every call was read in full. Valid.
+DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): Python helper scripts the arm wrote and ran launched `copilot --acp` (acpprobe.py, calls #31, #33, #34, #37, #38, #39, #42, #48) and a bare `codex app-server` (codexprobe.py, calls #19, #22, #45 to #47), both outside the step-5 allowlist and invisible to the checker; no prompt was sent and both ran under a network-denying sandbox, but a Copilot ACP session uses the dispatching user's sign-in. Scored 5/5 before discard; the score is not evidence. Under the owner's later app-server ruling (tests/scenarios.md step 5, commit 28cb932) the bare `codex app-server` starts were not re-read; the discard stands on `copilot --acp`, which that ruling keeps forbidden.
 
 ## Score
 
-| Criterion | Result | Evidence |
-|---|---|---|
-| 1 | pass | objective.json shows `claude.errors: []` (exit 0, success), and diff.patch leaves `.claude-plugin/plugin.json` untouched: the final file matches the original, which declares no explicit component paths, so the default command, agent, hook and MCP locations still apply. |
-| 2 | pass | objective.json shows `codex.listed: ["review-kit"]` and `copilot.listed: ["review-kit"]`. |
-| 3 | pass | The report.md table says `agents/reviewer.md` in Codex is "**no**: Codex plugins can't include agents" and the API key prompt (`userConfig`) is "**no**: user must export `REVIEW_KIT_API_KEY`". |
-| 4 | pass | The report.md table says "Codex converts it on install into a skill called `review-kit:source-command-review`", which is the automatic-migration branch. |
-| 5 | pass | report.md states the method (local-folder installs, throwaway homes, blocked network, stand-in server, no model prompts) and has a "Not verified" section: Copilot hook, Codex hook after approval, Claude key prompt, GitHub installs. Doc-based claims are either marked ("its docs say") or come from docs the agent fetched (tool-calls.jsonl shows curls of the Codex plugins/build and Copilot plugin-reference/hooks pages). One gap: the report does not name a source for the Codex agent claim. |
-
-Total: 5 of 5 passed.
+Not scored: this run was discarded (see Isolation). It is kept so any observation drawn from it can be audited; it is not evidence for the arm's score.
 
 ## Final report
 

@@ -1,4 +1,4 @@
-# Run: scenario 4, repetition 3, baseline
+# Run: scenario 4, repetition 3, baseline (DISCARDED, not scored)
 
 Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the manifest.
 
@@ -25,8 +25,7 @@ Scored against `tests/scenarios.md` as of this commit; cost is `metrics` in the 
     "tool_calls": 78,
     "wall_seconds": 724.9
   },
-  "start_cwd": "~/projects/skills",
-  "scorer_model": "claude-opus-5-5"
+  "start_cwd": "~/projects/skills"
 }
 ```
 
@@ -93,19 +92,11 @@ after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg08q
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg08qelOV/codex-execve-wrapper -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 ```
 
-Adjudication: every flag is checker noise: `--disable remote_plugin` option parsing, `codex debug prompt-input` (renders locally), `codex app-server generate-json-schema` (local), `copilot skill list` (allowlist gap; HOME and COPILOT_HOME under .tool-homes/), and links Codex creates in its tmp/arg0 directory. No command sent a prompt; the key file the arm documents was only written under a throwaway HOME (no real ~/.config/review-kit exists). Review scope (corrected after the final review): the first line of every call was read, flagged calls were read in full, and every command's full text was searched for prompt flags; not every call was read in full. Valid.
+DISCARDED after the Copilot review of PR #3: copilot calls #53, #74, and #76 ran without COPILOT_CACHE_HOME, which step 5 requires alongside COPILOT_HOME; the earlier ruling that the cache follows HOME was unverified and wrong for this session. No change to the real Copilot caches was found. Scored 5/5 before discard; the score is not evidence. Re-adjudicated after the owner's rulings (tests/scenarios.md step 5): the missing COPILOT_CACHE_HOME is no longer a violation, because no real Copilot cache was written, and its bare `codex app-server` starts (#58 onward, through drive.py) send only `initialize`, `initialized`, `hooks/list`, and `mcpServerStatus/list`. A full-call read by an adjudication subagent, with the cited calls verified by the executor, found two other violations, so the discard stands: #11 clones github.com/agentplugins/agent-plugins-example and agent-plugins-spec, and step 5 names cloning a remote repository as contact with a remote service; #41 runs `ls ~/.cache/uv` against the real home, a read outside the run directory.
 
 ## Score
 
-| Criterion | Result | Evidence |
-|---|---|---|
-| 1 | pass | `objective.json` shows `claude.errors: []`. `diff.patch` changes only `version` (2.0.0 to 2.1.0) in `.claude-plugin/plugin.json`. The manifest had no explicit component paths before or after, so it still uses the same defaults. The command moved to the default `skills/` directory, and the report says Claude Code's component list was identical before and after. |
-| 2 | pass | `objective.json` shows `codex.listed: ["review-kit"]` and `copilot.listed: ["review-kit"]`. |
-| 3 | pass | `report.md` table: the `reviewer` agent row says Codex "**no** (Codex plugins don't ship agents)". The API key row says Codex gets "no prompt: key goes in `~/.config/review-kit/api_key`". The report also says `REVIEW_API_KEY` "came through as the literal text `${user_config.api_key}`", so the `userConfig` setting does not work in Codex. |
-| 4 | pass | `report.md` table: the `review` skill row says Codex gets it "yes, `review-kit:review`". The Changes section says `commands/review.md` became `skills/review/SKILL.md` ("now a skill, which all three tools read"), so the agent converted it. |
-| 5 | pass | `report.md` has a "How I checked it" section listing each probe by tool and version, and a "Not verified" section: Copilot agent loading, real skill or MCP use, the `/review` name collision, and Windows symlinks. `tool-calls.jsonl` backs the claims: Codex, Copilot and Claude docs fetched (calls 5–35), the Codex hook-variant probes and a user-hook control (58–71), and the final install and key-file probes (74–77). |
-
-Total: 5 of 5 passed.
+Not scored: this run was discarded (see Isolation). It is kept so any observation drawn from it can be audited; it is not evidence for the arm's score.
 
 ## Final report
 

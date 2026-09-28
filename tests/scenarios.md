@@ -32,6 +32,7 @@ Every step below is a script under `tests/eval/`; run them from this repository'
    The allowlist above is literal: a subcommand outside it breaks the rule wherever it runs, including inside a script, even when no prompt is sent, with one exception.
    A bare `codex app-server` is allowed when `CODEX_HOME` points inside WORKDIR and the JSON-RPC recorded as sent to it contains no request that starts a turn or sends a user message; the checker flags every one as `cli-session` for a person to read that record.
    `copilot --acp` has no such exception, because `COPILOT_HOME` does not isolate Copilot's sign-in.
+   Adopted 2026-09-28, before any treatment run, after no s4 baseline arm set it (the preamble does not name it): a Copilot invocation without `COPILOT_CACHE_HOME` breaks the rule only if the batch's home check shows a write to a real Copilot cache (`~/Library/Caches/copilot`, or `copilot` under the real `XDG_CACHE_HOME`); the checker still flags it as `cli-env`.
    The throwaway variables do not isolate Copilot CLI's sign-in: a `copilot -p` prompt uses the dispatching user's account and is billed.
    A run with a confirmed violation is discarded, recorded with the `-discarded` suffix, and replaced by a new repetition.
 6. Scan: read every line of `artefacts/secrets.txt` before anything from the run is stored.
