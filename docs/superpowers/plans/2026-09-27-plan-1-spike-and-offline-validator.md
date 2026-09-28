@@ -23,6 +23,7 @@ Later plans (not this one): SKILL.md and references (phase 2), conformance probe
 - Markdown: one sentence per line; `docs/research/` is archived evidence and is never edited or reformatted.
 - Conventional commits; every commit message ends with the line `🤖 Generated with Claude Code`.
 - Never `git add -A` or `git add .`; add explicit paths.
+- Before every commit from Task 2 onward, run `uv run ruff format . && uv run ruff check --fix .`, then `uv run pytest -q`; prek re-runs these on commit and fails the commit if it rewrote a file.
 - The validator never installs into a real tool configuration and never executes plugin code (spec R15).
 - A skipped or inconclusive check is reported as such, never as passed (spec R12).
 - A tool is covered only if a runnable probe can check it; no reader entry, reference text, or test fixture for Copilot CLI or VS Code is written unless Task 1 records a passing probe for it.
@@ -48,10 +49,11 @@ Scratch files live in a `mktemp -d` directory and are deleted at the end.
 
 **Files:**
 - Create: `docs/research/2026-09-27-phase0-probes.md` (a new, dated research record; it is written by this task, so the no-edit rule for archived reports applies only after it is committed)
-- Modify: `docs/research/README.md` (add one table row for the new record)
+- Modify: `docs/research/README.md` (add one table row, and amend its opening so it no longer claims every file is a verbatim subagent report)
 - Modify: `docs/research/SHA256SUMS` (regenerate)
 
 The Copilot and VS Code apps are launched against throwaway directories; VS Code opens a visible window, so tell the owner before Step 7.
+This task writes files under `docs/research/`; the "never edit" rule in `AGENTS.md` covers the archived reports, not `README.md`, `SHA256SUMS`, or a new record (Task 2 states the exemption).
 
 - [ ] **Step 1: Snapshot the real Copilot configuration so isolation can be proven afterwards**
 
@@ -59,7 +61,11 @@ The Copilot and VS Code apps are launched against throwaway directories; VS Code
 export SPIKE=$(mktemp -d)
 find ~/.copilot -type f -exec shasum -a 256 {} + 2>/dev/null | sort > "$SPIKE/copilot-before.txt"
 wc -l "$SPIKE/copilot-before.txt"
+timeout 60 copilot plugin marketplace list < /dev/null | tee "$SPIKE/copilot-list-real.txt"
 ```
+
+The last command runs without the isolation variables; its output is the baseline the isolated listing is compared with in Step 3.
+Every `copilot` command in this task runs with `< /dev/null` and `timeout`, so a first-run prompt cannot hang the probe.
 
 - [ ] **Step 2: Build the fixture marketplace**
 
@@ -90,36 +96,42 @@ Isolation is established before any command that writes.
 
 ```bash
 export COPILOT_HOME="$SPIKE/copilot-home" COPILOT_CACHE_HOME="$SPIKE/copilot-cache"
-copilot --version
-copilot plugin marketplace list
+timeout 60 copilot --version < /dev/null
+timeout 60 copilot plugin marketplace list < /dev/null | tee "$SPIKE/copilot-list-isolated.txt"
+diff "$SPIKE/copilot-list-real.txt" "$SPIKE/copilot-list-isolated.txt"
 find ~/.copilot -type f -exec shasum -a 256 {} + 2>/dev/null | sort | diff "$SPIKE/copilot-before.txt" - && echo "read-only command left real config unchanged"
 ls -R "$SPIKE" | head -20
 ```
 
-Continue only if the real configuration is unchanged and the listing shows the two default marketplaces (proof the CLI read the isolated home rather than failing silently).
+The two default marketplaces are built in, so their presence proves nothing about isolation.
+Isolation is shown when the isolated listing lacks any non-default marketplace the real listing has, or, if the real listing has only the defaults, when the read-only command created files under `$COPILOT_HOME` or `$COPILOT_CACHE_HOME`.
+Continue only if isolation is shown and the real configuration is unchanged.
 If `copilot plugin --help` or the docs show another state location (for example under `~/.config` or `~/Library`), snapshot that location in Step 1 as well before continuing.
 
 ```bash
-copilot plugin marketplace add "$SPIKE/mkt"; echo "add exit=$?"
-copilot plugin marketplace list
-copilot plugin marketplace browse spike-mkt --json | tee "$SPIKE/copilot-browse.json"; echo "browse exit=$?"
+timeout 120 copilot plugin marketplace add "$SPIKE/mkt" < /dev/null 2>&1 | tee "$SPIKE/copilot-add.txt"
+timeout 60 copilot plugin marketplace list < /dev/null | tee -a "$SPIKE/copilot-add.txt"
+timeout 60 copilot plugin marketplace browse spike-mkt --json < /dev/null | tee "$SPIKE/copilot-browse.json"
 ls -R "$COPILOT_HOME" | head -40
 ```
 
 Record: which entry names `browse` lists, and the observed handling (`accepted`, `rejected`, `absent`) of each control.
-Catalog discovery passes only if `alpha` is listed and `control-unknown` is absent.
+Catalog discovery passes if `alpha` is listed and `control-unknown` is absent.
+If `browse` lists every entry including `control-unknown`, record discovery as `unproven` (the listing does not filter) and continue: Step 4's install-time rejection of `control-unknown` then serves as the negative control for package load (owner decision, 2026-09-27).
 
 - [ ] **Step 4: Probe Copilot CLI package load in the same isolated home**
 
 ```bash
-copilot plugin --help
-copilot plugin install alpha@spike-mkt; echo "install exit=$?"
-copilot plugin list --help
-copilot plugin list --json 2>/dev/null || copilot plugin list
+timeout 60 copilot plugin --help < /dev/null | tee "$SPIKE/copilot-plugin-help.txt"
+timeout 120 copilot plugin install alpha@spike-mkt < /dev/null 2>&1 | tee "$SPIKE/copilot-install-alpha.txt"
+timeout 120 copilot plugin install control-unknown@spike-mkt < /dev/null 2>&1 | tee "$SPIKE/copilot-install-control.txt"
+timeout 60 copilot plugin list --help < /dev/null | tee -a "$SPIKE/copilot-plugin-help.txt"
+(timeout 60 copilot plugin list --json < /dev/null || timeout 60 copilot plugin list < /dev/null) | tee "$SPIKE/copilot-installed.txt"
 ```
 
-Record: whether an installed-plugin listing exposes the `hello` skill or any component (package-load observability, spec §8 level 4).
-If `install` would run any hook or network step, stop and record that instead of proceeding.
+Record: whether an installed-plugin listing exposes the `hello` skill or any component (package-load observability, spec §8 level 4), and whether installing `control-unknown` failed.
+Package load passes only if `alpha` installs with an observable component and `control-unknown` fails to install.
+The fixture plugin has no hooks, MCP servers, or scripts, so installing it runs no plugin code; if the help output shows `install` would fetch from the network for a local source, stop and record that instead of proceeding.
 
 - [ ] **Step 5: Prove the real Copilot configuration was untouched**
 
@@ -130,7 +142,7 @@ diff "$SPIKE/copilot-before.txt" "$SPIKE/copilot-after.txt" && echo "real config
 ```
 
 Expected: `real config unchanged`.
-If the diff is non-empty, the isolation variables do not isolate; record it, and Copilot CLI fails the gate (spec §12, "a probe that cannot be isolated is not written").
+If the diff is non-empty, the isolation variables do not isolate: run `timeout 60 copilot plugin marketplace remove spike-mkt < /dev/null` without the variables to roll back, confirm with a fresh snapshot, record it, and Copilot CLI fails the gate (spec §12, "a probe that cannot be isolated is not written").
 
 - [ ] **Step 6: Find the VS Code 1.139.1 marketplace settings and log lines in source**
 
@@ -163,13 +175,15 @@ Then close that window.
 The gate passes only if a file under `$SPIKE/vsc` (a log or state file) machine-readably shows `alpha` accepted and `control-unknown` rejected or absent.
 A result visible only in the UI does not pass.
 If the source in Step 6 shows no log line or persisted state that names entries, record that and stop without further attempts.
+A throwaway profile has no sign-in and may show a workspace-trust dialog; if the service appears not to run for that reason, record the verdict as "no headless observation obtained" with the reason, not as "does not read the catalog".
+This step attempts catalog discovery only; record VS Code's package-load level as `unproven`.
 
 - [ ] **Step 8: Write the decision record**
 
-Create `docs/research/2026-09-27-phase0-probes.md` with one section per tool, one sentence per line, containing: tool version, exact commands run, the verbatim relevant output (pasted from the files in `$SPIKE`, not retyped), the verdict for each of catalog discovery and package load (`pass`, `fail`, or `unproven`), and the observed behaviour for each control (`accepted`, `rejected`, `absent`).
+Create `docs/research/2026-09-27-phase0-probes.md` (a hand-written record, not a subagent report) with one section per tool, one sentence per line, containing: tool version, exact commands run, the verbatim relevant output (pasted from the files in `$SPIKE`, not retyped), the verdict for each of catalog discovery and package load (`pass`, `fail`, or `unproven`), and the observed behaviour for each control (`accepted`, `rejected`, `absent`).
 End with a `## Decision` section listing which of Copilot CLI and VS Code remain in scope under spec §3.1.
 
-Add this row to the table in `docs/research/README.md`:
+In `docs/research/README.md`, change the sentence that begins "Each report is the verbatim final output" to begin "Each `2026-09-27-*` report except `2026-09-27-phase0-probes.md` is the verbatim final output", and add this row to the table:
 
 ```markdown
 | [2026-09-27-phase0-probes.md](2026-09-27-phase0-probes.md) | Phase-0 gate: headless isolated probes for Copilot CLI and VS Code | copilot and VS Code 1.139.1 on this machine |
@@ -192,7 +206,8 @@ git commit -m "docs(research): record phase-0 probe results for Copilot CLI and 
 
 **Files:**
 - Create: `pyproject.toml`, `prek.toml`, `.gitignore`, `LICENSE`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `.github/workflows/ci.yml`
-- Create: `tools/check_skill_frontmatter.py` (copied), `tools/check_sentence_per_line.py`
+- Create: `tools/check_skill_frontmatter.py` (copied, one-line type fix), `tools/check_sentence_per_line.py`
+- Create: `skills/plugin-marketplaces/scripts/mpcheck/__init__.py` (empty; the `ty` hook's search path must exist from this commit on)
 - Test: `tests/test_sentence_per_line.py`, `tests/conftest.py`
 
 **Interfaces:**
@@ -253,7 +268,7 @@ __pycache__/
 # Agent instructions
 
 - Markdown uses one sentence per line, so diffs stay reviewable.
-- Files under `docs/research/` are archived evidence: never edit or reformat them; add a new dated file instead.
+- Dated reports under `docs/research/` are archived evidence: never edit or reformat them; add a new dated file instead (`README.md` and `SHA256SUMS` there are indexes and may be updated).
 - Commit messages follow conventional commits.
 - A normative rule has exactly one home: the Rules section of `skills/plugin-marketplaces/SKILL.md`; every other file cites the rule id and does not restate it.
 - The skill covers a tool only if a runnable probe can check its behaviour; a tool without one is excluded, not described as unverified.
@@ -282,15 +297,37 @@ prek run --all-files
 ```
 ```
 
-- [ ] **Step 5: Copy the frontmatter checker**
+- [ ] **Step 5: Copy the frontmatter checker, fix its type error, and prove it can pass and fail**
 
 ```bash
-mkdir -p tools
+mkdir -p tools skills/plugin-marketplaces/scripts/mpcheck
+touch skills/plugin-marketplaces/scripts/mpcheck/__init__.py
 cp ~/projects/skills/scripts/check-skill-frontmatter.py tools/check_skill_frontmatter.py
-uv run python tools/check_skill_frontmatter.py --help || true
 ```
 
-Expected: it prints usage or runs without an import error (pyyaml comes from the dev group after `uv sync`).
+In `tools/check_skill_frontmatter.py`, replace
+
+```text
+        if getattr(exc, "problem_mark", None) is not None:
+```
+
+with
+
+```text
+        if isinstance(exc, yaml.MarkedYAMLError) and exc.problem_mark is not None:
+```
+
+(`ty` rejects `problem_mark` on the base `YAMLError`.)
+Then run it on a known-good and a known-bad file:
+
+```bash
+uv sync
+uv run python tools/check_skill_frontmatter.py ~/projects/skills/vega-lite/SKILL.md; echo "good exit=$?"
+BAD=$(mktemp -d)/badskill && mkdir -p "$BAD" && printf -- '---\nname: Bad Name\n---\nx\n' > "$BAD/SKILL.md"
+uv run python tools/check_skill_frontmatter.py "$BAD/SKILL.md"; echo "bad exit=$?"
+```
+
+Expected: `good exit=0`; then three `error:` lines and `bad exit=1`.
 
 - [ ] **Step 6: Write the failing test for the one-sentence-per-line checker**
 
@@ -306,6 +343,11 @@ def test_single_sentences_pass():
 
 def test_two_sentences_on_one_line_fail():
     assert violations("Intro line.\nFirst one. Second one.\n") == [2]
+
+
+def test_sentences_ending_in_code_or_capitals_fail():
+    assert violations("Run `uv sync`. Then run the tests.\n") == [1]
+    assert violations("Report it as SKIPPED. Never as passed.\n") == [1]
 
 
 def test_abbreviations_are_not_sentence_breaks():
@@ -348,7 +390,7 @@ def _isolate_git_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 - [ ] **Step 8: Run the test to verify it fails**
 
-Run: `uv sync && uv run pytest tests/test_sentence_per_line.py -v`
+Run: `uv run pytest tests/test_sentence_per_line.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'check_sentence_per_line'`.
 
 - [ ] **Step 9: Write `tools/check_sentence_per_line.py`**
@@ -365,7 +407,7 @@ from pathlib import Path
 CODE_SPAN = re.compile(r"`[^`]*`")
 LEAD = re.compile(r"^\s*(?:>\s*)?(?:#+\s*)?(?:\d+\.|[-*+])?\s*")
 ABBREVIATIONS = ("e.g.", "i.e.", "etc.", "vs.", "cf.")
-BREAK = re.compile(r"[a-z0-9)\]*_\"'][.!?] +[A-Z]")
+BREAK = re.compile(r"[A-Za-z0-9)\]*_\"'`][.!?] +[A-Z]")
 
 
 def violations(text: str) -> list[int]:
@@ -378,7 +420,7 @@ def violations(text: str) -> list[int]:
             continue
         if in_fence or stripped.startswith("|"):
             continue
-        prose = CODE_SPAN.sub("CODE", LEAD.sub("", line, count=1))
+        prose = CODE_SPAN.sub("`code`", LEAD.sub("", line, count=1))
         for abbreviation in ABBREVIATIONS:
             prose = prose.replace(abbreviation, "ABBR")
         if BREAK.search(prose):
@@ -402,7 +444,8 @@ if __name__ == "__main__":
 - [ ] **Step 10: Run the test to verify it passes**
 
 Run: `uv run pytest tests/test_sentence_per_line.py -v`
-Expected: 6 passed.
+Expected: 7 passed.
+`test_sentences_ending_in_code_or_capitals_fail` is the checker's known positive for the two forms (a code span or a capitalised word before the full stop) an earlier draft of this regex could not see.
 
 - [ ] **Step 11: Write `prek.toml`**
 
@@ -457,16 +500,20 @@ jobs:
       - run: prek run --all-files
 ```
 
-- [ ] **Step 13: Run every hook, including on the existing spec and research files**
+- [ ] **Step 13: Install the hooks, then run every hook on every file**
 
-Run: `prek run --all-files`
-Expected: all hooks pass.
-If `sentence-per-line` flags lines in `docs/superpowers/`, split those lines (never touch `docs/research/`), then re-run.
+```bash
+prek install
+prek run --all-files
+```
+
+Expected: `prek install` reports the pre-commit hook installed; every hook passes.
+If `sentence-per-line` flags lines in `docs/superpowers/`, split those lines (never touch the dated reports in `docs/research/`), then re-run.
 
 - [ ] **Step 14: Commit**
 
 ```bash
-git add pyproject.toml uv.lock prek.toml .gitignore LICENSE README.md AGENTS.md CLAUDE.md .github/workflows/ci.yml tools/check_skill_frontmatter.py tools/check_sentence_per_line.py tests/test_sentence_per_line.py tests/conftest.py docs/superpowers
+git add pyproject.toml uv.lock prek.toml .gitignore LICENSE README.md AGENTS.md CLAUDE.md .github/workflows/ci.yml tools/check_skill_frontmatter.py tools/check_sentence_per_line.py tests/test_sentence_per_line.py tests/conftest.py skills/plugin-marketplaces/scripts/mpcheck/__init__.py docs/superpowers
 git commit -m "chore: add repository skeleton, tooling, and Markdown sentence check
 
 🤖 Generated with Claude Code"
@@ -477,7 +524,7 @@ git commit -m "chore: add repository skeleton, tooling, and Markdown sentence ch
 ### Task 3: Finding model and duplicate-key JSON loading
 
 **Files:**
-- Create: `skills/plugin-marketplaces/scripts/mpcheck/__init__.py` (empty), `skills/plugin-marketplaces/scripts/mpcheck/model.py`, `skills/plugin-marketplaces/scripts/mpcheck/jsonload.py`
+- Create: `skills/plugin-marketplaces/scripts/mpcheck/model.py`, `skills/plugin-marketplaces/scripts/mpcheck/jsonload.py` (the package's `__init__.py` exists from Task 2)
 - Test: `tests/test_model_and_jsonload.py`
 
 **Interfaces:**
@@ -530,7 +577,7 @@ def test_load_json_reads_valid_json(tmp_path):
 - [ ] **Step 2: Run to verify failure**
 
 Run: `uv run pytest tests/test_model_and_jsonload.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'mpcheck'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'mpcheck.jsonload'`.
 
 - [ ] **Step 3: Implement `mpcheck/model.py`**
 
@@ -611,8 +658,6 @@ def load_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_no_duplicates)
 ```
 
-Create `skills/plugin-marketplaces/scripts/mpcheck/__init__.py` as an empty file.
-
 - [ ] **Step 5: Run to verify pass**
 
 Run: `uv run pytest tests/test_model_and_jsonload.py -v`
@@ -621,7 +666,7 @@ Expected: 5 passed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add skills/plugin-marketplaces/scripts/mpcheck/__init__.py skills/plugin-marketplaces/scripts/mpcheck/model.py skills/plugin-marketplaces/scripts/mpcheck/jsonload.py tests/test_model_and_jsonload.py
+git add skills/plugin-marketplaces/scripts/mpcheck/model.py skills/plugin-marketplaces/scripts/mpcheck/jsonload.py tests/test_model_and_jsonload.py
 git commit -m "feat(validator): add finding model and duplicate-key-safe JSON loading
 
 🤖 Generated with Claude Code"
@@ -636,8 +681,9 @@ git commit -m "feat(validator): add finding model and duplicate-key-safe JSON lo
 - Test: `tests/test_readers.py`
 
 **Interfaces:**
-- Produces: `mpcheck.readers.Reader` frozen dataclass with fields `id: str`, `reference: str`, `catalog_paths: tuple[str, ...]`, `source_types: frozenset[str]`, `path_requires_dot_slash: bool`, `marketplace_name_re: re.Pattern[str] | None`, `entry_name_re: re.Pattern[str] | None`, `reads_entry_hooks: bool`.
-- Produces: `load_readers(path: Path = DEFAULT_READERS_PATH) -> dict[str, Reader]`, `source_type(source: object) -> str`, `source_path(source: object) -> str | None`, `GIT_SOURCE_TYPES: frozenset[str]`.
+- Produces: `mpcheck.readers.Reader` frozen dataclass with fields `id: str`, `reference: str`, `catalog_paths: tuple[str, ...]`, `source_types: frozenset[str]`, `path_requires_dot_slash: bool`, `path_prefix_exempt_catalogs: frozenset[str]`, `honours_plugin_root: bool`, `marketplace_name_re: re.Pattern[str] | None`, `entry_name_re: re.Pattern[str] | None`, `reads_entry_hooks: bool`.
+- Produces: `load_readers(path: Path = DEFAULT_READERS_PATH) -> dict[str, Reader]`, `source_type(source: object) -> str`, `source_path(source: object) -> str | None`, `is_bare(rel: str) -> bool`, `effective_path(rel: str, plugin_root: str | None) -> str`, `GIT_SOURCE_TYPES: frozenset[str]`.
+- `effective_path` joins a bare name without `/` onto the catalog's `metadata.pluginRoot` (Claude Code v2.1.239+ and VS Code honour it; Codex does not); `path_prefix_exempt_catalogs` records Codex's relaxed `./` rule for `.cursor-plugin/marketplace.json`.
 - Source type vocabulary: `"path"` (a string), `"local-object"` (Codex `{"source": "local", "path": ...}`), the object's `"source"` value otherwise, `"invalid"` for anything else.
 
 - [ ] **Step 1: Write the failing tests**
@@ -699,9 +745,21 @@ Only Claude Code and Codex appear here; Task 12 adds Copilot CLI and VS Code if 
   "$comment": "Facts per covered reader. Provenance: docs/research/2026-09-27-*.md until the reference named in 'reference' exists; change a value only after re-verifying it.",
   "claude-code": {
     "reference": "references/claude-code.md",
-    "catalog_paths": [".claude-plugin/marketplace.json"],
-    "source_types": ["path", "github", "url", "git-subdir", "npm", "archive", "command"],
+    "catalog_paths": [
+      ".claude-plugin/marketplace.json"
+    ],
+    "source_types": [
+      "path",
+      "github",
+      "url",
+      "git-subdir",
+      "npm",
+      "archive",
+      "command"
+    ],
     "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [],
+    "honours_plugin_root": true,
     "marketplace_name_pattern": "^(?!\\.$)(?!.*\\.\\.)[^\\s/\\\\\\x00-\\x1f]+$",
     "entry_name_pattern": "^[^\\s]+$",
     "reads_entry_hooks": true
@@ -714,8 +772,18 @@ Only Claude Code and Codex appear here; Task 12 adds Copilot CLI and VS Code if 
       ".claude-plugin/marketplace.json",
       ".cursor-plugin/marketplace.json"
     ],
-    "source_types": ["path", "local-object", "url", "git-subdir", "npm"],
+    "source_types": [
+      "path",
+      "local-object",
+      "url",
+      "git-subdir",
+      "npm"
+    ],
     "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [
+      ".cursor-plugin/marketplace.json"
+    ],
+    "honours_plugin_root": false,
     "marketplace_name_pattern": "^[A-Za-z0-9_-]+$",
     "entry_name_pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$",
     "reads_entry_hooks": false
@@ -731,6 +799,7 @@ Only Claude Code and Codex appear here; Task 12 adds Copilot CLI and VS Code if 
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -746,6 +815,8 @@ class Reader:
     catalog_paths: tuple[str, ...]
     source_types: frozenset[str]
     path_requires_dot_slash: bool
+    path_prefix_exempt_catalogs: frozenset[str]
+    honours_plugin_root: bool
     marketplace_name_re: re.Pattern[str] | None
     entry_name_re: re.Pattern[str] | None
     reads_entry_hooks: bool
@@ -767,6 +838,8 @@ def load_readers(path: Path = DEFAULT_READERS_PATH) -> dict[str, Reader]:
             catalog_paths=tuple(spec["catalog_paths"]),
             source_types=frozenset(spec["source_types"]),
             path_requires_dot_slash=spec["path_requires_dot_slash"],
+            path_prefix_exempt_catalogs=frozenset(spec.get("path_prefix_exempt_catalogs", [])),
+            honours_plugin_root=spec.get("honours_plugin_root", False),
             marketplace_name_re=_compile(spec.get("marketplace_name_pattern")),
             entry_name_re=_compile(spec.get("entry_name_pattern")),
             reads_entry_hooks=spec.get("reads_entry_hooks", False),
@@ -784,6 +857,18 @@ def source_type(source: object) -> str:
         if isinstance(kind, str) and kind:
             return kind
     return "invalid"
+
+
+def is_bare(rel: str) -> bool:
+    """A local path that neither is '.' nor starts with './'."""
+    return not (rel == "." or rel.startswith("./"))
+
+
+def effective_path(rel: str, plugin_root: str | None) -> str:
+    """A bare name without '/' resolves under the catalog's metadata.pluginRoot, when one is set."""
+    if plugin_root and is_bare(rel) and "/" not in rel:
+        return posixpath.join(plugin_root, rel)
+    return rel
 
 
 def source_path(source: object) -> str | None:
@@ -819,10 +904,10 @@ git commit -m "feat(validator): add reader facts for Claude Code and Codex
 
 **Interfaces:**
 - Consumes: `load_json`, `DuplicateKeyError` (Task 3); `Reader`, `source_path` (Task 4); `Finding`, `Severity` (Task 3).
-- Produces: `Catalog(relpath: str, data: dict[str, object], entries: list[tuple[int, dict[str, object]]])`; every entry kept has a `str` `"name"` and a `"source"` key.
+- Produces: `Catalog(relpath: str, data: dict[str, object], entries: list[tuple[int, dict[str, object]]], plugin_root: str | None = None)`; every entry kept has a `str` `"name"` and a `"source"` key; `plugin_root` is the catalog's `metadata.pluginRoot` when it is a string.
 - Produces: `Plugin(directory: Path, manifests: dict[str, dict[str, object]])`; manifest keys are `".claude-plugin/plugin.json"`, `".codex-plugin/plugin.json"`, and `"plugin.json"` (present only when the root manifest declares the Agent Plugins `$schema`).
-- Produces: `Repo(root: Path, catalogs: dict[str, Catalog], reader_catalog: dict[str, str | None], plugins: dict[Path, Plugin])` with methods `readers_of(relpath: str, declared: tuple[str, ...]) -> list[str]` and `plugin_for(entry: dict[str, object]) -> Plugin | None`.
-- Produces: `resolve_local(root: Path, source: object) -> Path | None` and `discover(root: Path, readers: dict[str, Reader]) -> tuple[Repo, list[Finding]]`; `Repo.root` is always resolved.
+- Produces: `Repo(root: Path, catalogs: dict[str, Catalog], reader_catalog: dict[str, str | None], plugins: dict[Path, Plugin])` with methods `readers_of(relpath: str, declared: tuple[str, ...]) -> list[str]` and `plugin_for(entry: dict[str, object], catalog: Catalog) -> Plugin | None`.
+- Produces: `resolve_local(root: Path, source: object, plugin_root: str | None = None) -> Path | None` and `discover(root: Path, readers: dict[str, Reader]) -> tuple[Repo, list[Finding]]`; `Repo.root` is always resolved.
 - Produces: `tests/helpers.py` with `write(root, rel, content) -> Path`, `read(root, rel) -> object`, `remote(**extra) -> dict`, constants `AP_SCHEMA`, `SHA`.
 
 - [ ] **Step 1: Write `tests/helpers.py`**
@@ -873,6 +958,7 @@ from mpcheck.discover import discover
 from mpcheck.readers import load_readers
 
 READERS = load_readers()
+CLAUDE = ".claude-plugin/marketplace.json"
 
 
 def ids(findings):
@@ -948,7 +1034,7 @@ def test_local_plugin_manifests_are_indexed(tmp_path):
     write(tmp_path, "p/a/plugin.json", {"$schema": AP_SCHEMA, "name": "a"})
     repo, findings = discover(tmp_path, READERS)
     assert findings == []
-    plugin = repo.plugin_for({"name": "a", "source": "./p/a"})
+    plugin = repo.plugin_for({"name": "a", "source": "./p/a"}, repo.catalogs[CLAUDE])
     assert plugin is not None
     assert set(plugin.manifests) == {".claude-plugin/plugin.json", "plugin.json"}
 
@@ -962,7 +1048,7 @@ def test_root_plugin_json_without_portable_schema(tmp_path):
     write(tmp_path, "p/a/plugin.json", {"name": "a"})
     repo, findings = discover(tmp_path, READERS)
     assert ids(findings) == ["local.portable-schema-missing"]
-    plugin = repo.plugin_for({"source": "./p/a"})
+    plugin = repo.plugin_for({"source": "./p/a"}, repo.catalogs[CLAUDE])
     assert plugin is not None
     assert "plugin.json" not in plugin.manifests
 
@@ -998,7 +1084,7 @@ from pathlib import Path
 
 from mpcheck.jsonload import DuplicateKeyError, load_json
 from mpcheck.model import Finding, Severity
-from mpcheck.readers import Reader, source_path
+from mpcheck.readers import Reader, effective_path, source_path
 
 PORTABLE_SCHEMA_PREFIX = "https://agent-plugins.org/schemas/"
 MANIFEST_FILES = (".claude-plugin/plugin.json", ".codex-plugin/plugin.json")
@@ -1009,6 +1095,7 @@ class Catalog:
     relpath: str
     data: dict[str, object]
     entries: list[tuple[int, dict[str, object]]]
+    plugin_root: str | None = None
 
 
 @dataclass
@@ -1027,15 +1114,18 @@ class Repo:
     def readers_of(self, relpath: str, declared: tuple[str, ...]) -> list[str]:
         return [reader for reader in declared if self.reader_catalog.get(reader) == relpath]
 
-    def plugin_for(self, entry: dict[str, object]) -> Plugin | None:
-        directory = resolve_local(self.root, entry.get("source"))
+    def plugin_for(self, entry: dict[str, object], catalog: Catalog) -> Plugin | None:
+        directory = resolve_local(self.root, entry.get("source"), catalog.plugin_root)
         return self.plugins.get(directory) if directory is not None else None
 
 
-def resolve_local(root: Path, source: object) -> Path | None:
+def resolve_local(root: Path, source: object, plugin_root: str | None = None) -> Path | None:
     """The plugin directory for a valid local source inside root, else None."""
     rel = source_path(source)
-    if rel is None or ".." in Path(rel).parts:
+    if rel is None:
+        return None
+    rel = effective_path(rel, plugin_root)
+    if ".." in Path(rel).parts:
         return None
     try:
         resolved = (root / rel).resolve()
@@ -1099,7 +1189,9 @@ def _load_catalog(root: Path, rel: str, findings: list[Finding]) -> Catalog | No
                     pointer=f"/plugins/{index}",
                 )
             )
-    return Catalog(rel, data, entries)
+    metadata = data.get("metadata")
+    plugin_root = metadata.get("pluginRoot") if isinstance(metadata, dict) else None
+    return Catalog(rel, data, entries, plugin_root if isinstance(plugin_root, str) else None)
 
 
 def _load_plugin(root: Path, directory: Path, findings: list[Finding]) -> Plugin:
@@ -1170,7 +1262,7 @@ def discover(root: Path, readers: dict[str, Reader]) -> tuple[Repo, list[Finding
     plugins: dict[Path, Plugin] = {}
     for catalog in catalogs.values():
         for _, entry in catalog.entries:
-            directory = resolve_local(root, entry.get("source"))
+            directory = resolve_local(root, entry.get("source"), catalog.plugin_root)
             if directory is not None and directory not in plugins:
                 plugins[directory] = _load_plugin(root, directory, findings)
     return Repo(root, catalogs, reader_catalog, plugins), findings
@@ -1199,10 +1291,11 @@ git commit -m "feat(validator): discover catalogs, reader precedence, and local 
 - Test: `tests/test_policy.py`
 
 **Interfaces:**
-- Consumes: `load_json`, `DuplicateKeyError`, `Finding`, `Severity`.
-- Produces: `POLICY_FILE = "marketplace-policy.json"`, `ParityException(plugin: str, kind: str, reason: str)` where `kind` is one of `"membership"`, `"version"`, `"source"`.
-- Produces: `Policy(readers: tuple[str, ...], exceptions: tuple[ParityException, ...], declared: bool)` with method `excepts(plugin: str, kind: str) -> bool`.
-- Produces: `load_policy(root: Path, path: Path | None, known: set[str], reading: dict[str, str | None]) -> tuple[Policy, list[Finding]]`.
+- Consumes: `load_json`, `DuplicateKeyError`, `Finding`, `Severity`, `Reader`.
+- Produces: `POLICY_FILE = "marketplace-policy.json"`, `ParityException(plugin: str, kind: str, reason: str)` where `kind` is one of `"membership"`, `"version"`, `"source"`, and `Channel(plugin: str, ref: str, reason: str)`.
+- Produces: `Policy(readers: tuple[str, ...], exceptions: tuple[ParityException, ...], declared: bool, channels: tuple[Channel, ...] = ())` with methods `excepts(plugin: str, kind: str) -> bool` and `channel(plugin: str, ref: object) -> Channel | None`.
+- Produces: `load_policy(root: Path, path: Path | None, readers: dict[str, Reader], reading: dict[str, str | None]) -> tuple[Policy, list[Finding]]`, where `reading` maps each reader to the catalog it reads (`Repo.reader_catalog`).
+- Inference without a policy file: a reader is inferred only when the catalog it reads is its own first-choice path (`catalog_paths[0]`); readers that would merely fall back to another tool's catalog are named in the `policy.inferred` warning, not assumed (owner decision, 2026-09-27).
 
 Policy file format:
 
@@ -1211,18 +1304,26 @@ Policy file format:
   "readers": ["claude-code", "codex"],
   "exceptions": [
     {"plugin": "voice-notify", "kind": "membership", "reason": "macOS hook plugin; Codex does not run command hooks from this catalog"}
+  ],
+  "channels": [
+    {"plugin": "data-reasoning", "ref": "release", "reason": "the release branch is the distribution channel"}
   ]
 }
 ```
+
+A channel declares a git ref that an entry deliberately tracks without a `sha` (spec R4's declared-channel exception).
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
 from helpers import write
 from mpcheck.policy import load_policy
+from mpcheck.readers import load_readers
 
-KNOWN = {"claude-code", "codex"}
-READING = {"claude-code": ".claude-plugin/marketplace.json", "codex": None}
+READERS = load_readers()
+CLAUDE = ".claude-plugin/marketplace.json"
+CODEX = ".agents/plugins/marketplace.json"
+READING: dict[str, str | None] = {"claude-code": CLAUDE, "codex": None}
 
 
 def ids(findings):
@@ -1230,10 +1331,23 @@ def ids(findings):
 
 
 def test_missing_policy_infers_readers_and_warns(tmp_path):
-    policy, findings = load_policy(tmp_path, None, KNOWN, READING)
+    policy, findings = load_policy(tmp_path, None, READERS, READING)
     assert policy.readers == ("claude-code",)
     assert policy.declared is False
     assert ids(findings) == ["policy.inferred"]
+
+
+def test_inference_ignores_a_fallback_catalog(tmp_path):
+    reading: dict[str, str | None] = {"claude-code": CLAUDE, "codex": CLAUDE}
+    policy, findings = load_policy(tmp_path, None, READERS, reading)
+    assert policy.readers == ("claude-code",)
+    assert "codex would also read a catalog here" in findings[0].message
+
+
+def test_inference_uses_native_catalogs(tmp_path):
+    reading: dict[str, str | None] = {"claude-code": CLAUDE, "codex": CODEX}
+    policy, _ = load_policy(tmp_path, None, READERS, reading)
+    assert policy.readers == ("claude-code", "codex")
 
 
 def test_valid_policy(tmp_path):
@@ -1243,57 +1357,62 @@ def test_valid_policy(tmp_path):
         {
             "readers": ["claude-code", "codex"],
             "exceptions": [{"plugin": "x", "kind": "membership", "reason": "Claude only"}],
+            "channels": [{"plugin": "y", "ref": "release", "reason": "release branch"}],
         },
     )
-    policy, findings = load_policy(tmp_path, None, KNOWN, READING)
+    policy, findings = load_policy(tmp_path, None, READERS, READING)
     assert findings == []
     assert policy.readers == ("claude-code", "codex")
     assert policy.excepts("x", "membership")
     assert not policy.excepts("x", "version")
+    assert policy.channel("y", "release") is not None
+    assert policy.channel("y", "main") is None
 
 
 def test_unknown_reader(tmp_path):
     write(tmp_path, "marketplace-policy.json", {"readers": ["claude-code", "cursor"]})
-    policy, findings = load_policy(tmp_path, None, KNOWN, READING)
+    policy, findings = load_policy(tmp_path, None, READERS, READING)
     assert ids(findings) == ["policy.unknown-reader"]
     assert policy.readers == ("claude-code",)
 
 
 def test_exception_without_reason(tmp_path):
-    write(
-        tmp_path,
-        "marketplace-policy.json",
-        {
-            "readers": ["codex"],
-            "exceptions": [
-                {"plugin": "x", "kind": "membership", "reason": "  "},
-                {"plugin": "y", "kind": "bogus", "reason": "r"},
-            ],
-        },
-    )
-    policy, findings = load_policy(tmp_path, None, KNOWN, READING)
+    exceptions = [
+        {"plugin": "x", "kind": "membership", "reason": "  "},
+        {"plugin": "y", "kind": "bogus", "reason": "r"},
+    ]
+    write(tmp_path, "marketplace-policy.json", {"readers": ["codex"], "exceptions": exceptions})
+    policy, findings = load_policy(tmp_path, None, READERS, READING)
     assert ids(findings) == ["policy.invalid-exception", "policy.invalid-exception"]
     assert policy.exceptions == ()
-
-
-def test_invalid_policy_shapes(tmp_path):
-    write(tmp_path, "marketplace-policy.json", {"readers": [], "exceptions": {}})
-    _, findings = load_policy(tmp_path, None, KNOWN, READING)
-    assert ids(findings) == ["policy.invalid", "policy.invalid"]
-
-
-def test_explicit_policy_path(tmp_path):
-    custom = write(tmp_path, "config/policy.json", {"readers": ["codex"]})
-    policy, findings = load_policy(tmp_path, custom, KNOWN, READING)
-    assert findings == []
-    assert policy.readers == ("codex",)
 
 
 def test_non_string_kind_is_invalid_not_a_crash(tmp_path):
     exception = {"plugin": "x", "kind": [], "reason": "r"}
     write(tmp_path, "marketplace-policy.json", {"readers": ["codex"], "exceptions": [exception]})
-    _, findings = load_policy(tmp_path, None, KNOWN, READING)
+    _, findings = load_policy(tmp_path, None, READERS, READING)
     assert ids(findings) == ["policy.invalid-exception"]
+
+
+def test_channel_without_reason(tmp_path):
+    channels = [{"plugin": "y", "ref": "release"}, {"plugin": "y", "ref": 3, "reason": "r"}]
+    write(tmp_path, "marketplace-policy.json", {"readers": ["codex"], "channels": channels})
+    policy, findings = load_policy(tmp_path, None, READERS, READING)
+    assert ids(findings) == ["policy.invalid-channel", "policy.invalid-channel"]
+    assert policy.channels == ()
+
+
+def test_invalid_policy_shapes(tmp_path):
+    write(tmp_path, "marketplace-policy.json", {"readers": [], "exceptions": {}, "channels": 1})
+    _, findings = load_policy(tmp_path, None, READERS, READING)
+    assert ids(findings) == ["policy.invalid", "policy.invalid", "policy.invalid"]
+
+
+def test_explicit_policy_path(tmp_path):
+    custom = write(tmp_path, "config/policy.json", {"readers": ["codex"]})
+    policy, findings = load_policy(tmp_path, custom, READERS, READING)
+    assert findings == []
+    assert policy.readers == ("codex",)
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1304,7 +1423,7 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'mpcheck.policy'`.
 - [ ] **Step 3: Implement `mpcheck/policy.py`**
 
 ```python
-"""marketplace-policy.json: declared target readers and parity exceptions (spec R1, R10)."""
+"""marketplace-policy.json: declared readers, parity exceptions, and channels (spec R1, R4, R10)."""
 
 from __future__ import annotations
 
@@ -1314,6 +1433,7 @@ from pathlib import Path
 
 from mpcheck.jsonload import DuplicateKeyError, load_json
 from mpcheck.model import Finding, Severity
+from mpcheck.readers import Reader
 
 POLICY_FILE = "marketplace-policy.json"
 EXCEPTION_KINDS = frozenset({"membership", "version", "source"})
@@ -1327,38 +1447,64 @@ class ParityException:
 
 
 @dataclass(frozen=True)
+class Channel:
+    """A git ref deliberately tracked without a pinned sha (a release channel)."""
+
+    plugin: str
+    ref: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class Policy:
     readers: tuple[str, ...]
     exceptions: tuple[ParityException, ...]
     declared: bool
+    channels: tuple[Channel, ...] = ()
 
     def excepts(self, plugin: str, kind: str) -> bool:
         return any(e.plugin == plugin and e.kind == kind for e in self.exceptions)
+
+    def channel(self, plugin: str, ref: object) -> Channel | None:
+        return next((c for c in self.channels if c.plugin == plugin and c.ref == ref), None)
 
 
 def _display(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
 
 
+def _text(item: dict[str, object], key: str) -> str | None:
+    value = item.get(key)
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
 def load_policy(
-    root: Path, path: Path | None, known: set[str], reading: dict[str, str | None]
+    root: Path,
+    path: Path | None,
+    readers: dict[str, Reader],
+    reading: dict[str, str | None],
 ) -> tuple[Policy, list[Finding]]:
     root = root.resolve()
     path = (path if path is not None else root / POLICY_FILE).resolve()
     rel = _display(root, path)
     findings: list[Finding] = []
     if not path.is_file():
-        inferred = tuple(r for r in sorted(known) if reading.get(r) is not None)
-        findings.append(
-            Finding(
-                "policy.inferred",
-                Severity.WARNING,
-                rel,
-                "no policy file; inferred target readers from the catalogs present: "
-                f"{', '.join(inferred) or 'none'}",
-                rule="R1",
-            )
+        # Infer only readers whose own first-choice catalog exists; a tool that merely
+        # falls back to another tool's catalog is not assumed to be a target.
+        inferred = tuple(
+            r for r in sorted(readers) if reading.get(r) == readers[r].catalog_paths[0]
         )
+        others = sorted(r for r in readers if reading.get(r) and r not in inferred)
+        message = (
+            "no policy file; inferred target readers from their native catalogs: "
+            f"{', '.join(inferred) or 'none'}"
+        )
+        if others:
+            message += (
+                f"; {', '.join(others)} would also read a catalog here — declare them in "
+                f"{POLICY_FILE} to check compatibility"
+            )
+        findings.append(Finding("policy.inferred", Severity.WARNING, rel, message, rule="R1"))
         return Policy(inferred, (), declared=False), findings
     try:
         raw = load_json(path)
@@ -1385,46 +1531,28 @@ def load_policy(
             )
         )
         readers_raw = []
-    readers: list[str] = []
+    declared: list[str] = []
     for reader_id in readers_raw:
-        if reader_id in known:
-            readers.append(reader_id)
+        if reader_id in readers:
+            declared.append(reader_id)
         else:
             findings.append(
                 Finding(
                     "policy.unknown-reader",
                     Severity.ERROR,
                     rel,
-                    f"unknown reader {reader_id!r}; covered readers: {', '.join(sorted(known))}",
+                    f"unknown reader {reader_id!r}; covered readers: {', '.join(sorted(readers))}",
                     rule="R1",
                     pointer="/readers",
                 )
             )
-    exceptions_raw = raw.get("exceptions", [])
-    if not isinstance(exceptions_raw, list):
-        findings.append(
-            Finding(
-                "policy.invalid",
-                Severity.ERROR,
-                rel,
-                "'exceptions' must be an array",
-                rule="R10",
-                pointer="/exceptions",
-            )
-        )
-        exceptions_raw = []
     exceptions: list[ParityException] = []
-    for index, item in enumerate(exceptions_raw):
-        valid = (
-            isinstance(item, dict)
-            and isinstance(item.get("plugin"), str)
-            and isinstance(item.get("kind"), str)
-            and item["kind"] in EXCEPTION_KINDS
-            and isinstance(item.get("reason"), str)
-            and item["reason"].strip()
-        )
-        if valid:
-            exceptions.append(ParityException(item["plugin"], item["kind"], item["reason"].strip()))
+    for index, item in enumerate(_array(raw, "exceptions", rel, "R10", findings)):
+        kind = item.get("kind") if isinstance(item, dict) else None
+        plugin = _text(item, "plugin") if isinstance(item, dict) else None
+        reason = _text(item, "reason") if isinstance(item, dict) else None
+        if plugin and isinstance(kind, str) and kind in EXCEPTION_KINDS and reason:
+            exceptions.append(ParityException(plugin, kind, reason))
         else:
             findings.append(
                 Finding(
@@ -1437,13 +1565,50 @@ def load_policy(
                     pointer=f"/exceptions/{index}",
                 )
             )
-    return Policy(tuple(readers), tuple(exceptions), declared=True), findings
+    channels: list[Channel] = []
+    for index, item in enumerate(_array(raw, "channels", rel, "R4", findings)):
+        plugin = _text(item, "plugin") if isinstance(item, dict) else None
+        ref = _text(item, "ref") if isinstance(item, dict) else None
+        reason = _text(item, "reason") if isinstance(item, dict) else None
+        if plugin and ref and reason:
+            channels.append(Channel(plugin, ref, reason))
+        else:
+            findings.append(
+                Finding(
+                    "policy.invalid-channel",
+                    Severity.ERROR,
+                    rel,
+                    "a channel needs 'plugin', 'ref', and a non-empty 'reason'",
+                    rule="R4",
+                    pointer=f"/channels/{index}",
+                )
+            )
+    return Policy(tuple(declared), tuple(exceptions), True, tuple(channels)), findings
+
+
+def _array(
+    raw: dict[str, object], key: str, rel: str, rule: str, findings: list[Finding]
+) -> list[object]:
+    value = raw.get(key, [])
+    if isinstance(value, list):
+        return value
+    findings.append(
+        Finding(
+            "policy.invalid",
+            Severity.ERROR,
+            rel,
+            f"'{key}' must be an array",
+            rule=rule,
+            pointer=f"/{key}",
+        )
+    )
+    return []
 ```
 
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest tests/test_policy.py -v`
-Expected: 7 passed.
+Expected: 10 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1466,6 +1631,7 @@ git commit -m "feat(validator): load marketplace policy with declared readers an
 **Interfaces:**
 - Consumes: `Repo`, `Catalog`, `resolve_local`, `discover` (Task 5); `Policy`, `POLICY_FILE`, `load_policy` (Task 6); `Reader`, `source_path`, `source_type`, `load_readers` (Task 4).
 - Produces: finding ids `local.reader-no-catalog`, `local.unread-catalog`, `local.source-type`, `local.path-prefix`, `local.path-traversal`, `local.path-escape`, `local.path-missing`, `local.path-invalid` (a Codex local object without a string `path`).
+- Path rule: a bare name is an error only for declared readers that require `./`, excluding a reader whose `path_prefix_exempt_catalogs` lists this catalog and, when the catalog sets `metadata.pluginRoot` and the name has no `/`, a reader that honours `pluginRoot`; containment is then checked on `effective_path`.
 - Produces: in `mpcheck.checks_local`, functions with the signature `(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]`: `check_reader_coverage`, `check_unread_catalogs`, `check_source_types`, `check_local_paths`; helper `active_catalogs(repo: Repo, policy: Policy) -> list[Catalog]`; list `LOCAL_CHECKS` that later tasks append to.
 - Produces: `tests/helpers.py` function `local_ids(root: Path) -> list[str]` returning sorted check ids from discovery, policy, and every function in `LOCAL_CHECKS`.
 
@@ -1526,7 +1692,7 @@ def local_ids(root: Path) -> list[str]:
 
     readers = load_readers()
     repo, findings = discover(root, readers)
-    policy, policy_findings = load_policy(repo.root, None, set(readers), repo.reader_catalog)
+    policy, policy_findings = load_policy(repo.root, None, readers, repo.reader_catalog)
     findings += policy_findings
     for check in LOCAL_CHECKS:
         findings += check(repo, readers, policy)
@@ -1621,6 +1787,52 @@ def test_remote_sources_skip_path_checks(market):
 def test_local_object_without_string_path(market):
     set_entry(market, CODEX, 0, source={"source": "local", "path": 7})
     assert local_ids(market) == ["local.path-invalid"]
+
+
+def claude_only_with_plugin_root(root, source="alpha"):
+    (root / CODEX).unlink()
+    write(root, "marketplace-policy.json", {"readers": ["claude-code"]})
+    data = read(root, CLAUDE)
+    data["metadata"] = {"pluginRoot": "./plugins"}
+    data["plugins"][0]["source"] = source
+    write(root, CLAUDE, data)
+
+
+def test_plugin_root_bare_name_is_clean_for_claude(market):
+    claude_only_with_plugin_root(market)
+    assert local_ids(market) == []
+
+
+def test_plugin_root_bare_name_still_reaches_manifest_checks(market):
+    claude_only_with_plugin_root(market)
+    manifest = read(market, "plugins/alpha/.claude-plugin/plugin.json")
+    manifest["name"] = "alpha-renamed"
+    write(market, "plugins/alpha/.claude-plugin/plugin.json", manifest)
+    assert local_ids(market) == ["local.name-mismatch"]
+
+
+def test_plugin_root_does_not_help_codex(market):
+    claude_only_with_plugin_root(market)
+    write(market, "marketplace-policy.json", {"readers": ["claude-code", "codex"]})
+    ids = local_ids(market)
+    assert ids.count("local.path-prefix") == 1
+    assert "local.path-missing" not in ids
+
+
+def test_codex_exempts_cursor_catalog_from_dot_slash(market):
+    (market / CLAUDE).unlink()
+    (market / CODEX).unlink()
+    write(market, "marketplace-policy.json", {"readers": ["codex"]})
+    write(
+        market,
+        ".cursor-plugin/marketplace.json",
+        {
+            "name": "demo",
+            "owner": {"name": "T"},
+            "plugins": [{"name": "alpha", "source": "plugins/alpha"}],
+        },
+    )
+    assert local_ids(market) == []
 ```
 
 - [ ] **Step 3: Run to verify failure**
@@ -1641,7 +1853,13 @@ from pathlib import Path
 from mpcheck.discover import Catalog, Repo
 from mpcheck.model import Finding, Severity
 from mpcheck.policy import POLICY_FILE, Policy
-from mpcheck.readers import Reader, source_path, source_type
+from mpcheck.readers import (
+    Reader,
+    effective_path,
+    is_bare,
+    source_path,
+    source_type,
+)
 
 Check = Callable[[Repo, dict[str, Reader], Policy], list[Finding]]
 
@@ -1677,7 +1895,8 @@ def check_unread_catalogs(repo: Repo, readers: dict[str, Reader], policy: Policy
             Severity.WARNING,
             rel,
             "no declared reader reads this catalog (another file takes precedence, "
-            "or its readers are not declared); it is not checked further",
+            "or its readers are not declared); its entries are not checked for reader "
+            "compatibility",
             rule="R1",
         )
         for rel in repo.catalogs
@@ -1709,9 +1928,7 @@ def check_source_types(repo: Repo, readers: dict[str, Reader], policy: Policy) -
 def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
     for catalog in active_catalogs(repo, policy):
-        needs_prefix = [
-            r.id for r in _readers_of(repo, readers, policy, catalog) if r.path_requires_dot_slash
-        ]
+        catalog_readers = _readers_of(repo, readers, policy, catalog)
         for index, entry in catalog.entries:
             rel = source_path(entry["source"])
             where = {"file": catalog.relpath, "pointer": f"/plugins/{index}/source", "rule": "R3"}
@@ -1726,16 +1943,29 @@ def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) ->
                         )
                     )
                 continue
-            if needs_prefix and not (rel == "." or rel.startswith("./")):
-                findings.append(
-                    Finding(
-                        "local.path-prefix",
-                        Severity.ERROR,
-                        message=f"local source {rel!r} must start with './' for "
-                        f"{', '.join(needs_prefix)}",
-                        **where,
+            if is_bare(rel):
+                # A bare name without '/' resolves under metadata.pluginRoot for readers
+                # that honour it; every other reader that requires './' rejects it.
+                under_root = bool(catalog.plugin_root) and "/" not in rel
+                offenders = [
+                    r.id
+                    for r in catalog_readers
+                    if r.path_requires_dot_slash
+                    and catalog.relpath not in r.path_prefix_exempt_catalogs
+                    and not (under_root and r.honours_plugin_root)
+                ]
+                if offenders:
+                    hint = " (metadata.pluginRoot does not apply for them)" if under_root else ""
+                    findings.append(
+                        Finding(
+                            "local.path-prefix",
+                            Severity.ERROR,
+                            message=f"local source {rel!r} must start with './' for "
+                            f"{', '.join(offenders)}{hint}",
+                            **where,
+                        )
                     )
-                )
+            rel = effective_path(rel, catalog.plugin_root)
             if ".." in Path(rel).parts:
                 findings.append(
                     Finding(
@@ -1789,12 +2019,12 @@ LOCAL_CHECKS: list[Check] = [
 ]
 ```
 
-Note for the symlink-loop test: on Python 3.12 `Path.resolve()` in non-strict mode may return the looping path rather than raise; then `is_dir()` is false and the `local.path-missing` branch fires, which is the asserted behaviour either way.
+Note for the symlink-loop test: `Path.resolve()` raises `RuntimeError` on a loop in Python 3.12 and returns the looping path in 3.13+; either way the `local.path-missing` branch fires, which is the asserted behaviour.
 
 - [ ] **Step 5: Run to verify pass**
 
 Run: `uv run pytest tests/test_checks_paths.py -v`
-Expected: 13 passed.
+Expected: 17 passed.
 
 - [ ] **Step 6: Commit**
 
@@ -1925,7 +2155,7 @@ def check_names(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[
                             source=reader.reference,
                         )
                     )
-            plugin = repo.plugin_for(entry)
+            plugin = repo.plugin_for(entry, catalog)
             if plugin is None:
                 continue
             prefix = plugin.directory.relative_to(repo.root).as_posix()
@@ -2096,7 +2326,7 @@ def _version_values(
     version = entry.get("version")
     if isinstance(version, str):
         values[f"{catalog.relpath}#/plugins/{index}/version"] = version
-    plugin = repo.plugin_for(entry)
+    plugin = repo.plugin_for(entry, catalog)
     if plugin is not None:
         prefix = plugin.directory.relative_to(repo.root).as_posix()
         for manifest_rel, manifest in plugin.manifests.items():
@@ -2122,7 +2352,7 @@ def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> li
                         pointer=f"/plugins/{index}",
                     )
                 )
-            elif values and (plugin := repo.plugin_for(entry)) is not None:
+            elif values and (plugin := repo.plugin_for(entry, catalog)) is not None:
                 prefix = plugin.directory.relative_to(repo.root).as_posix()
                 recorded = next(iter(values.values()))
                 for manifest_rel, manifest in plugin.manifests.items():
@@ -2139,7 +2369,7 @@ def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> li
                                 pointer=f"/plugins/{index}",
                             )
                         )
-            elif not values and repo.plugin_for(entry) is not None:
+            elif not values and repo.plugin_for(entry, catalog) is not None:
                 findings.append(
                     Finding(
                         "local.version-missing",
@@ -2154,10 +2384,10 @@ def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> li
                 )
     return findings
 
-def pin_of(source: object) -> str | None:
+def pin_of(source: object, plugin_root: str | None = None) -> str | None:
     rel = source_path(source)
     if rel is not None:
-        return "path:" + posixpath.normpath(Path(rel).as_posix())
+        return "path:" + posixpath.normpath(effective_path(rel, plugin_root))
     if isinstance(source, dict):
         for key in ("sha", "sha256"):
             value = source.get(key)
@@ -2200,7 +2430,7 @@ def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list
                 values = set(_version_values(repo, by_rel[rel], index, entry).values())
                 if len(values) == 1:
                     versions |= values
-                pin = pin_of(entry["source"])
+                pin = pin_of(entry["source"], by_rel[rel].plugin_root)
                 if pin is not None:
                     pins.add(pin)
             for kind, differing, check in (
@@ -2264,7 +2494,7 @@ git commit -m "feat(validator): check version agreement and cross-catalog parity
 - Test: `tests/test_checks_pins.py`
 
 **Interfaces:**
-- Produces: `check_pins` emitting `local.pin-missing`, `local.pin-malformed`, `local.pin-unpinnable` (errors, R4); `check_entry_hooks` emitting `local.entry-hooks-path` (error); `check_portable_mcp` emitting `local.portable-mcp-missing` (warning).
+- Produces: `check_pins` emitting `local.pin-missing`, `local.pin-malformed`, `local.pin-unpinnable` (errors, R4), `local.pin-channel` (info, R4: an unpinned git source whose `ref` is a declared channel), `local.pin-unverified` (warning, R4: a `pip` source, for which no pin rule is verified), and `policy.unused-channel` (warning); `check_entry_hooks` emitting `local.entry-hooks-path` (error); `check_portable_mcp` emitting `local.portable-mcp-missing` (warning).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2341,6 +2571,49 @@ def test_portable_plugin_with_only_dot_mcp(market):
         market, "plugins/alpha/.mcp.json", {"mcpServers": {"x": {"command": "uvx", "args": ["x"]}}}
     )
     assert local_ids(market) == ["local.portable-mcp-missing"]
+
+
+def claude_only(root):
+    (root / CODEX).unlink()
+
+
+def unpinned_release(root, channels):
+    claude_only(root)
+    write(root, "marketplace-policy.json", {"readers": ["claude-code"], "channels": channels})
+    data = read(root, CLAUDE)
+    data["plugins"][1]["source"] = {"source": "github", "repo": "example/beta", "ref": "release"}
+    write(root, CLAUDE, data)
+
+
+def test_declared_channel_is_info_not_error(market):
+    unpinned_release(market, [{"plugin": "beta", "ref": "release", "reason": "release branch"}])
+    assert local_ids(market) == ["local.pin-channel"]
+
+
+def test_channel_for_another_ref_does_not_excuse(market):
+    unpinned_release(market, [{"plugin": "beta", "ref": "main", "reason": "main branch"}])
+    assert local_ids(market) == ["local.pin-missing", "policy.unused-channel"]
+
+
+def test_unused_channel_warns(market):
+    write(
+        market,
+        "marketplace-policy.json",
+        {
+            "readers": ["claude-code", "codex"],
+            "channels": [{"plugin": "beta", "ref": "release", "reason": "stale"}],
+        },
+    )
+    assert local_ids(market) == ["policy.unused-channel"]
+
+
+def test_pip_source_has_no_verified_pin_rule(market):
+    claude_only(market)
+    write(market, "marketplace-policy.json", {"readers": ["claude-code"]})
+    data = read(market, CLAUDE)
+    data["plugins"][1]["source"] = {"source": "pip", "package": "beta", "version": "1.0.0"}
+    write(market, CLAUDE, data)
+    assert local_ids(market) == ["local.pin-unverified", "local.source-type"]
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -2350,7 +2623,7 @@ Expected: FAIL — missing ids.
 
 - [ ] **Step 3: Implement the three checks**
 
-Add imports at the top of `checks_local.py`:
+Add `import re` to the imports at the top of `checks_local.py`, and add `GIT_SOURCE_TYPES` to its existing `from mpcheck.readers import (...)` list (ruff merges a separate line into it anyway):
 
 ```python
 import re
@@ -2379,6 +2652,7 @@ def _pin_finding(check: str, catalog: Catalog, index: int, message: str) -> Find
 
 def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
+    used_channels: set[tuple[str, str]] = set()
     for catalog in active_catalogs(repo, policy):
         for index, entry in catalog.entries:
             source = entry["source"]
@@ -2388,7 +2662,21 @@ def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[F
                 continue
             if kind in GIT_SOURCE_TYPES:
                 sha = source.get("sha")
-                if sha is None:
+                channel = policy.channel(str(name), source.get("ref")) if sha is None else None
+                if channel is not None:
+                    used_channels.add((channel.plugin, channel.ref))
+                    findings.append(
+                        Finding(
+                            "local.pin-channel",
+                            Severity.INFO,
+                            catalog.relpath,
+                            f"{name!r} tracks the declared channel ref {channel.ref!r}; users "
+                            f"receive every push without a reviewed pin move ({channel.reason})",
+                            rule="R4",
+                            pointer=f"/plugins/{index}/source",
+                        )
+                    )
+                elif sha is None:
                     findings.append(
                         _pin_finding(
                             "local.pin-missing",
@@ -2437,6 +2725,17 @@ def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[F
                             f"npm source for {name!r} needs an exact 'version', not a range or dist-tag",
                         )
                     )
+            elif kind == "pip":
+                findings.append(
+                    Finding(
+                        "local.pin-unverified",
+                        Severity.WARNING,
+                        catalog.relpath,
+                        f"no pin rule for pip sources has been verified; review {name!r} by hand",
+                        rule="R4",
+                        pointer=f"/plugins/{index}/source",
+                    )
+                )
             elif kind == "command":
                 findings.append(
                     _pin_finding(
@@ -2447,6 +2746,18 @@ def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[F
                         "published catalog",
                     )
                 )
+    for channel in policy.channels:
+        if (channel.plugin, channel.ref) not in used_channels:
+            findings.append(
+                Finding(
+                    "policy.unused-channel",
+                    Severity.WARNING,
+                    POLICY_FILE,
+                    f"channel {channel.ref!r} for {channel.plugin!r} matches no unpinned git "
+                    "source; remove it so it cannot excuse a future unpinned entry",
+                    rule="R4",
+                )
+            )
     return findings
 
 def check_entry_hooks(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
@@ -2500,7 +2811,7 @@ Run `uv run ruff format skills/plugin-marketplaces/scripts/mpcheck/checks_local.
 - [ ] **Step 4: Run to verify pass, then the whole suite**
 
 Run: `uv run pytest tests/test_checks_pins.py -v && uv run pytest -q`
-Expected: 9 passed; the full suite passes.
+Expected: 13 passed; the full suite passes.
 
 - [ ] **Step 5: Commit**
 
@@ -2524,7 +2835,11 @@ git commit -m "feat(validator): check source pins, entry hooks, and portable MCP
 - Produces: `PortableCounts(manifests: int, mcp_files: int, servers: int)` with `note() -> str` (for example `"manifests=1 mcp.json=0 servers=0"`), so the status table says what was examined.
 - Produces: `check_portable(repo: Repo) -> tuple[list[Finding], PortableCounts]` emitting `schema.portable.unsupported-version`, `schema.portable.manifest` (warning when tolerated by the spec, error otherwise), `schema.portable.mcp`, `schema.portable.mcp-server`.
 - Produces: `run_claude_validate(repo: Repo, runner: Runner = ..., which: Callable[[str], str | None] = shutil.which) -> tuple[list[Finding], Status, str]` emitting `schema.claude-validate.error`, `schema.claude-validate.warning`, `schema.claude-validate.crashed`; the `str` is a note for the status table.
-- Status contract: `SKIPPED` when there is nothing to validate or `claude` is absent; `INCONCLUSIVE` when any run yields no usable report (unparseable output, missing `manifest` or `success`, an exit code other than 0 or 1, or `success` contradicting the exit code); otherwise `FAILED` if any error finding, else `PASSED`.
+- Targets: the marketplace root when `.claude-plugin/marketplace.json` exists, plus every resolvable local plugin directory (with or without a manifest), each validated once.
+- A plugin directory that also contains `.claude-plugin/marketplace.json` (for example a repository that is its own marketplace) cannot be validated as a plugin, because `validate` selects the catalog; it yields `schema.claude-validate.unreachable` (info) and a status note, never a silent pass.
+- Issues the marketplace run reports as `plugins[N] plugin.json → …` are dropped when plugin N is validated directly, so each manifest issue is reported once.
+- A plugin directory without `.claude-plugin/plugin.json` is a valid target: `validate` reports `"manifest": null` and lists component files with issues under `contents` (observed on claude 2.1.283).
+- Status contract: `SKIPPED` when there is nothing to validate or `claude` is absent; `INCONCLUSIVE` when any run yields no usable report (unparseable output, a missing `manifest` key or a `manifest` that is neither an object nor `null`, a missing `success`, an exit code other than 0 or 1, or `success` contradicting the exit code); otherwise `FAILED` if any error finding, else `PASSED`.
 - MCP granularity: the `mcp.json` envelope is validated with `mcpServers` emptied (a failure disables MCP), then each server is validated alone against `#/$defs/server` (a failure skips only that server).
 - `Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]`.
 
@@ -2573,8 +2888,13 @@ def portable(root):
 
 def test_vendored_schemas_match_recorded_digests():
     sums = SCHEMAS_DIR.parent / "SHA256SUMS"
-    for line in sums.read_text(encoding="utf-8").splitlines():
-        digest, name = line.split(maxsplit=1)
+    lines = sums.read_text(encoding="utf-8").splitlines()
+    recorded = {name: digest for digest, name in (line.split(maxsplit=1) for line in lines)}
+    assert set(recorded) == {
+        "agent-plugins/1.0.0/plugin.schema.json",
+        "agent-plugins/1.0.0/mcp.schema.json",
+    }
+    for name, digest in recorded.items():
         assert hashlib.sha256((SCHEMAS_DIR.parent / name).read_bytes()).hexdigest() == digest
 
 
@@ -2712,6 +3032,93 @@ def test_real_claude_catches_a_known_defect(market):
         f.check == "schema.claude-validate.error" and "plugins.0.source" in f.pointer
         for f in findings
     )
+
+
+def recording_runner(calls, report=None):
+    report = report or {"success": True, "manifest": {"errors": [], "warnings": []}, "contents": []}
+
+    def run(argv):
+        calls.append(argv[-1])
+        return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(report), stderr="")
+
+    return run
+
+
+def test_claude_validates_every_local_plugin_once(market):
+    write(market, "plugins/gamma/skills/g/SKILL.md", "---\nname: g\ndescription: G.\n---\n\nG.\n")
+    for catalog in (".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"):
+        data = read(market, catalog)
+        data["plugins"].append({"name": "gamma", "source": "./plugins/gamma"})
+        write(market, catalog, data)
+    calls = []
+    _, status, note = run_claude_validate(
+        repo_of(market), runner=recording_runner(calls), which=lambda _: FOUND
+    )
+    root = market.resolve()
+    assert sorted(calls) == sorted(
+        str(p) for p in (root, root / "plugins/alpha", root / "plugins/gamma")
+    )
+    assert (status, note) == (Status.PASSED, "")
+
+
+def test_plugin_that_is_its_own_marketplace_is_reported_unreachable(tmp_path):
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        {"name": "solo", "owner": {"name": "T"}, "plugins": [{"name": "solo", "source": "./"}]},
+    )
+    write(tmp_path, ".claude-plugin/plugin.json", {"name": "solo", "version": "1.0.0"})
+    calls = []
+    findings, status, note = run_claude_validate(
+        repo_of(tmp_path), runner=recording_runner(calls), which=lambda _: FOUND
+    )
+    assert calls == [str(tmp_path.resolve())]
+    assert ids(findings) == ["schema.claude-validate.unreachable"]
+    assert status == Status.PASSED
+    assert note == "plugin-level validation unreachable for: ."
+
+
+def test_nested_manifest_issues_are_not_reported_twice(market):
+    nested = {"path": "plugins[0] plugin.json → author", "message": "No author information"}
+    report = {"success": True, "manifest": {"errors": [], "warnings": [nested]}, "contents": []}
+    findings, _, _ = run_claude_validate(
+        repo_of(market), runner=recording_runner([], report), which=lambda _: FOUND
+    )
+    # plugin 0 (alpha) is validated directly, so only its direct run may report the issue;
+    # the recording runner returns the same report for every target, hence one copy.
+    assert [f.pointer for f in findings] == ["plugins[0] plugin.json → author"]
+
+
+def test_manifestless_plugin_report_is_evidence(market):
+    # Shape observed from `claude plugin validate --strict --json` 2.1.283 on a plugin
+    # directory with a skill but no .claude-plugin/plugin.json.
+    skill = str((market / "plugins/alpha/skills/hello/SKILL.md").resolve())
+    report = {
+        "success": False,
+        "manifest": None,
+        "contents": [
+            {
+                "file": skill,
+                "type": "skill",
+                "errors": [],
+                "warnings": [{"path": "description", "message": "No description in frontmatter."}],
+            }
+        ],
+    }
+    findings, status, _ = run_claude_validate(
+        repo_of(market), runner=fake_runner(json.dumps(report), 1), which=lambda _: FOUND
+    )
+    assert status == Status.PASSED
+    assert "schema.claude-validate.crashed" not in ids(findings)
+    assert any(f.file == "plugins/alpha/skills/hello/SKILL.md" for f in findings)
+
+
+def test_report_without_manifest_key_is_inconclusive(market):
+    report = {"success": True, "contents": []}
+    _, status, _ = run_claude_validate(
+        repo_of(market), runner=fake_runner(json.dumps(report), 0), which=lambda _: FOUND
+    )
+    assert status == Status.INCONCLUSIVE
 ```
 
 `test_real_claude_catches_a_known_defect` is the known positive for the wrapper: it proves the real tool's output reaches the findings, so a clean result elsewhere is not a broken instrument.
@@ -2729,6 +3136,7 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'mpcheck.checks_schema
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from collections.abc import Callable, Sequence
@@ -2737,7 +3145,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from mpcheck.discover import Repo
+from mpcheck.discover import Repo, resolve_local
 from mpcheck.jsonload import DuplicateKeyError, load_json
 from mpcheck.model import Finding, Severity, Status
 
@@ -2900,22 +3308,66 @@ def _crashed(repo: Repo, target: Path, reason: str) -> Finding:
     )
 
 
+CLAUDE_CATALOG = ".claude-plugin/marketplace.json"
+# The marketplace run repeats each relative plugin's manifest issues as
+# "plugins[N] plugin.json → field"; those are dropped when plugin N is validated directly.
+NESTED_MANIFEST = re.compile(r"^plugins\[(\d+)\] plugin\.json →")
+
+
+def _claude_targets(repo: Repo) -> tuple[list[Path], list[Path]]:
+    """Directories to validate, and plugin directories whose own validation is unreachable."""
+    targets: list[Path] = []
+    unreachable: list[Path] = []
+    if (repo.root / CLAUDE_CATALOG).is_file():
+        targets.append(repo.root)
+    for directory in repo.plugins:
+        # `claude plugin validate DIR` selects DIR/.claude-plugin/marketplace.json when it
+        # exists, so a plugin that is also a marketplace cannot be validated as a plugin.
+        if (directory / CLAUDE_CATALOG).is_file():
+            unreachable.append(directory)
+        elif directory not in targets:
+            targets.append(directory)
+    return targets, unreachable
+
+
+def _directly_validated_indexes(repo: Repo, targets: list[Path]) -> set[int]:
+    catalog = repo.catalogs.get(CLAUDE_CATALOG)
+    if catalog is None:
+        return set()
+    return {
+        index
+        for index, entry in catalog.entries
+        if resolve_local(repo.root, entry.get("source"), catalog.plugin_root) in targets
+    }
+
+
 def run_claude_validate(
     repo: Repo,
     runner: Runner = _default_runner,
     which: Callable[[str], str | None] = shutil.which,
 ) -> tuple[list[Finding], Status, str]:
-    targets: list[Path] = []
-    if (repo.root / ".claude-plugin/marketplace.json").is_file():
-        targets.append(repo.root)
-    targets += [
-        p.directory for p in repo.plugins.values() if ".claude-plugin/plugin.json" in p.manifests
+    targets, unreachable = _claude_targets(repo)
+    findings = [
+        Finding(
+            "schema.claude-validate.unreachable",
+            Severity.INFO,
+            _rel(repo.root, directory) if directory != repo.root else ".",
+            "plugin-level `claude plugin validate` cannot run here because the directory is "
+            "also a marketplace; its skills, agents, hooks, and MCP files are not validated",
+            source=CLAUDE_REF,
+        )
+        for directory in unreachable
     ]
+    note = (
+        "plugin-level validation unreachable for: " + ", ".join(f.file for f in findings)
+        if findings
+        else ""
+    )
     if not targets:
-        return [], Status.SKIPPED, "no Claude Code catalog or plugin manifest"
+        return findings, Status.SKIPPED, note or "no Claude Code catalog or local plugin"
     if which("claude") is None:
-        return [], Status.SKIPPED, "claude not on PATH"
-    findings: list[Finding] = []
+        return findings, Status.SKIPPED, "claude not on PATH"
+    direct = _directly_validated_indexes(repo, targets)
     inconclusive = False
     for target in targets:
         try:
@@ -2927,9 +3379,12 @@ def run_claude_validate(
             continue
         # Exit 0 means success and 1 means failure; anything else, or a report whose
         # shape or success flag disagrees with the exit code, is not evidence either way.
+        # A directory without .claude-plugin/plugin.json reports "manifest": null and lists
+        # its component files (skills, agents, commands) under "contents".
         if (
             not isinstance(report, dict)
-            or not isinstance(report.get("manifest"), dict)
+            or "manifest" not in report
+            or not (report["manifest"] is None or isinstance(report["manifest"], dict))
             or not isinstance(report.get("success"), bool)
             or proc.returncode not in (0, 1)
             or report["success"] != (proc.returncode == 0)
@@ -2939,7 +3394,7 @@ def run_claude_validate(
             )
             inconclusive = True
             continue
-        for item in [report["manifest"], *(report.get("contents") or [])]:
+        for item in [report["manifest"] or {}, *(report.get("contents") or [])]:
             if not isinstance(item, dict):
                 continue
             file = _rel(repo.root, Path(str(item.get("file", target))))
@@ -2948,21 +3403,25 @@ def run_claude_validate(
                 ("warnings", Severity.WARNING, "warning"),
             ):
                 for issue in item.get(key) or []:
+                    pointer = str(issue.get("path", ""))
+                    nested = NESTED_MANIFEST.match(pointer)
+                    if target == repo.root and nested and int(nested.group(1)) in direct:
+                        continue
                     findings.append(
                         Finding(
                             f"schema.claude-validate.{suffix}",
                             severity,
                             file,
                             str(issue.get("message", "")),
-                            pointer=str(issue.get("path", "")),
+                            pointer=pointer,
                             source=CLAUDE_REF,
                         )
                     )
     if inconclusive:
         return findings, Status.INCONCLUSIVE, "a validator run produced no usable report"
     if any(f.severity == Severity.ERROR for f in findings):
-        return findings, Status.FAILED, ""
-    return findings, Status.PASSED, ""
+        return findings, Status.FAILED, note
+    return findings, Status.PASSED, note
 ```
 
 Run `uv run ruff format skills/plugin-marketplaces/scripts/mpcheck/checks_schema.py`.
@@ -2970,7 +3429,7 @@ Run `uv run ruff format skills/plugin-marketplaces/scripts/mpcheck/checks_schema
 - [ ] **Step 5: Run to verify pass**
 
 Run: `uv run pytest tests/test_checks_schema.py -v`
-Expected: 15 passed (14 if `claude` is not installed, with 1 skipped).
+Expected: 20 passed (19 if `claude` is not installed, with 1 skipped).
 
 - [ ] **Step 6: Commit**
 
@@ -3015,7 +3474,7 @@ def test_clean_market_exits_zero(market, capsys):
     assert check_marketplace.main([str(market), "--no-claude"]) == 0
     out = capsys.readouterr().out
     assert "No findings." in out
-    assert "schema.claude-validate" in out and "skipped" in out
+    assert f"  {'schema.claude-validate':24} skipped  (disabled with --no-claude)" in out
 
 
 def test_defect_exits_one_and_json_is_parseable(market, capsys):
@@ -3072,6 +3531,18 @@ def test_runs_as_a_uv_script(market):
     )
     assert proc.returncode == 0, proc.stderr
     assert "No findings." in proc.stdout
+
+
+def test_claude_only_marketplace_is_not_checked_for_codex(tmp_path):
+    source = {"source": "github", "repo": "example/beta", "sha": "a" * 40}
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        {"name": "demo", "owner": {"name": "T"}, "plugins": [{"name": "beta", "source": source}]},
+    )
+    report = run_checks(tmp_path, use_claude=False)
+    assert sorted(f.check for f in report.findings) == ["policy.inferred"]
+    assert report.exit_code(Severity.ERROR) == 0
 ```
 
 `test_runs_as_a_uv_script` proves the PEP 723 header and sibling-package import work outside pytest's `pythonpath`.
@@ -3131,7 +3602,7 @@ def run_checks(
 ) -> Report:
     readers = load_readers()
     repo, findings = discover(root, readers)
-    policy, policy_findings = load_policy(repo.root, policy_path, set(readers), repo.reader_catalog)
+    policy, policy_findings = load_policy(repo.root, policy_path, readers, repo.reader_catalog)
     findings += policy_findings
     for check in LOCAL_CHECKS:
         findings += check(repo, readers, policy)
@@ -3253,7 +3724,7 @@ chmod +x skills/plugin-marketplaces/scripts/check_marketplace.py
 - [ ] **Step 6: Run to verify pass, then every hook**
 
 Run: `uv run pytest -q && prek run --all-files`
-Expected: 89 passed (88 with 1 skipped if `claude` is absent); all hooks pass.
+Expected: 107 passed (106 with 1 skipped if `claude` is absent); all hooks pass.
 
 - [ ] **Step 7: Commit**
 
@@ -3320,6 +3791,8 @@ Expected: FAIL with `KeyError: 'copilot-cli'` (and/or `'vscode'`).
     "catalog_paths": ["marketplace.json", ".plugin/marketplace.json", ".github/plugin/marketplace.json", ".claude-plugin/marketplace.json"],
     "source_types": ["path", "github", "url"],
     "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [],
+    "honours_plugin_root": false,
     "marketplace_name_pattern": null,
     "entry_name_pattern": null,
     "reads_entry_hooks": false
@@ -3329,6 +3802,8 @@ Expected: FAIL with `KeyError: 'copilot-cli'` (and/or `'vscode'`).
     "catalog_paths": ["marketplace.json", ".plugin/marketplace.json", ".github/plugin/marketplace.json", ".claude-plugin/marketplace.json"],
     "source_types": ["path", "github", "url", "git-subdir", "npm", "pip"],
     "path_requires_dot_slash": true,
+    "path_prefix_exempt_catalogs": [],
+    "honours_plugin_root": true,
     "marketplace_name_pattern": null,
     "entry_name_pattern": null,
     "reads_entry_hooks": false
@@ -3336,6 +3811,8 @@ Expected: FAIL with `KeyError: 'copilot-cli'` (and/or `'vscode'`).
 ```
 
 Set each `path_requires_dot_slash` to the value the probe observed.
+VS Code's `honours_plugin_root: true` comes from its source (`parsePluginSource` honours `metadata.pluginRoot`, `docs/research/2026-09-27-other-harnesses.md`); Copilot CLI's stays `false`, the strict default, until a probe shows otherwise.
+A `pip` source keeps yielding `local.pin-unverified` until a later plan verifies VS Code's pip pin fields.
 
 - [ ] **Step 4: Run to verify pass, then the whole suite**
 
@@ -3373,9 +3850,11 @@ Record both SHAs for the note.
 - [ ] **Step 2: Run the validator, with Claude's validator enabled, and keep the raw output**
 
 ```bash
+mkdir -p docs/calibration
 S=skills/plugin-marketplaces/scripts/check_marketplace.py
-uv run --script $S "$CAL/bcp" --format json > docs/calibration/briandconnelly-plugins.json; echo "bcp exit=$?"
-uv run --script $S "$CAL/dr" --format json > docs/calibration/data-reasoning.json; echo "dr exit=$?"
+uv run --script $S "$CAL/bcp" --format json > docs/calibration/briandconnelly-plugins.json
+uv run --script $S "$CAL/dr" --format json > docs/calibration/data-reasoning.json
+test -s docs/calibration/briandconnelly-plugins.json && test -s docs/calibration/data-reasoning.json && echo "both reports written"
 jq -r '.findings | group_by(.check) | map("\(.[0].check)\t\(length)") | .[]' docs/calibration/briandconnelly-plugins.json
 jq -r '.findings | group_by(.check) | map("\(.[0].check)\t\(length)") | .[]' docs/calibration/data-reasoning.json
 jq '.statuses' docs/calibration/briandconnelly-plugins.json
@@ -3384,7 +3863,7 @@ jq '.statuses' docs/calibration/briandconnelly-plugins.json
 - [ ] **Step 3: Check the known positive**
 
 The design expected `local.parity-membership` findings for `briandconnelly-plugins` (11 Claude entries versus 9 Codex entries on 2026-09-27).
-A dry run of this plan's code on 2026-09-27 (`briandconnelly-plugins@329a25f`, `data-reasoning@5ea04d8`) produced: 4 `local.parity-membership` and 1 `local.pin-missing` (`codex-in-claude`, a `url` source with no `sha`) in the first, and 1 `local.pin-missing` (`data-reasoning`, a `github` source tracking `ref: release`) in the second, plus `policy.inferred` in both; different results at newer commits are expected, but an unexplained difference at these commits means the implementation diverged from the plan.
+A dry run of this plan's code on 2026-09-27 (`briandconnelly-plugins@329a25f`, `data-reasoning@5ea04d8`) produced: 4 `local.parity-membership` and 1 `local.pin-missing` (`codex-in-claude`, a `url` source with no `sha`) in the first, and 1 `local.pin-missing` (`data-reasoning`, a `github` source tracking `ref: release`) in the second, plus `policy.inferred` in both (both repositories ship a native Codex catalog, so inference declares Codex there); with Claude's validator enabled, `data-reasoning` also yields `schema.claude-validate.unreachable`, because its repository root is both marketplace and plugin; different results at newer commits are expected, but an unexplained difference at these commits means the implementation diverged from the plan.
 
 ```bash
 jq '[.findings[] | select(.check == "local.parity-membership")] | length' docs/calibration/briandconnelly-plugins.json

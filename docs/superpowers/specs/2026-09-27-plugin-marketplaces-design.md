@@ -126,7 +126,7 @@ Body sections:
    - R1 Declare the target readers in `marketplace-policy.json` before choosing sources or layouts.
    - R2 Use only source types that every declared reader of that catalog accepts.
    - R3 Local sources start with `./`, contain no `..`, and resolve (after symlinks) inside the marketplace root.
-   - R4 Every remote source is pinned to immutable content using its source type's mechanism: a full commit `sha` for git sources (`github`, `url`, `git-subdir`), `sha256` for `archive`, an exact version (not a range or dist-tag) for `npm`; `command` sources are not used in a published catalog because they cannot be pinned.
+   - R4 Every remote source is pinned to immutable content using its source type's mechanism: a full commit `sha` for git sources (`github`, `url`, `git-subdir`), `sha256` for `archive`, an exact version (not a range or dist-tag) for `npm`; `command` sources are not used in a published catalog because they cannot be pinned; the one exception is a git ref declared as a channel, with a reason, in `marketplace-policy.json` (owner, 2026-09-27).
    - R5 A pin moves only after the change between the old and new pinned content has been reviewed.
    - R6 For each reader, the plugin's version is set in that reader's authoritative field (the per-reader table in `releases.md`), and every version value recorded anywhere for that plugin is equal.
    - R7 A release changes the version value in every place R6 records it.
@@ -166,7 +166,8 @@ It never installs into real tool configuration and never executes plugin code (R
 
 Inputs: a repository path; optional `--policy` (defaults to `marketplace-policy.json` at the root); `--remote`; `--probe <tool>...`; `--format json|text`.
 
-`marketplace-policy.json` declares `readers` per catalog file and `exceptions` (plugin name, catalogs, reason) for R10; when absent, the validator infers readers from which catalog files exist and reports that inference as a finding.
+`marketplace-policy.json` declares the target `readers`, `exceptions` (plugin, kind, reason) for R10, and `channels` (plugin, ref, reason) for R4; which catalog each reader reads follows from its documented precedence.
+When the file is absent, the validator infers a reader only from that reader's own first-choice catalog, names any other tool that would also read a catalog there, and reports the inference as a finding (owner, 2026-09-27).
 
 Check levels:
 
@@ -228,6 +229,7 @@ Reader source-type tables live in one data file, `scripts/readers.json`, which `
 ## 11. Delivery phases
 
 0. Feasibility spike (throwaway), exit criterion per tool: a headless, isolated probe that shows an accepted fixture entry and omits a known-rejected control entry; any tool without one leaves scope (§3.1) before its reference is written.
+   - When a tool lists every catalog entry and rejects the control only at install time, discovery is recorded `unproven` and the install-time rejection serves as the package-load level's negative control (owner, 2026-09-27).
    - Copilot CLI: set `COPILOT_HOME` and `COPILOT_CACHE_HOME` to temporary directories, `copilot plugin marketplace add <fixture path>`, then `copilot plugin marketplace browse <name> --json`.
    - VS Code: `code` 1.139.1 has no plugin-marketplace command, so the spike must demonstrate a read-only observation of the workbench plugin marketplace service (for example an extension-host test run with a throwaway `--user-data-dir`) that asserts both controls; launching the app without a machine-readable result does not satisfy the criterion.
    - Package-load observability is recorded per tool; where none exists, that tool's package-load level stays `unproven` (§8).
