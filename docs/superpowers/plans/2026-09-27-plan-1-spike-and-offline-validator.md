@@ -51,6 +51,8 @@ Scratch files live in a `mktemp -d` directory and are deleted at the end.
 - Modify: `docs/research/README.md` (add one table row for the new record)
 - Modify: `docs/research/SHA256SUMS` (regenerate)
 
+The Copilot and VS Code apps are launched against throwaway directories; VS Code opens a visible window, so tell the owner before Step 7.
+
 - [ ] **Step 1: Snapshot the real Copilot configuration so isolation can be proven afterwards**
 
 ```bash
@@ -61,7 +63,8 @@ wc -l "$SPIKE/copilot-before.txt"
 
 - [ ] **Step 2: Build the fixture marketplace**
 
-It has one plugin that must load, and two controls that Copilot's documented source types say it must not accept.
+It has one plugin that must load and three controls.
+`control-unknown` uses a source type no tool defines, so it is the known-rejected control for every tool; `control-npm` and `control-bare` additionally record Copilot's handling of documented-unsupported forms, and VS Code is expected to accept both.
 
 ```bash
 mkdir -p "$SPIKE/mkt/.claude-plugin" "$SPIKE/mkt/plugins/alpha/.claude-plugin" "$SPIKE/mkt/plugins/alpha/skills/hello"
@@ -72,7 +75,8 @@ cat > "$SPIKE/mkt/.claude-plugin/marketplace.json" <<'EOF'
   "plugins": [
     {"name": "alpha", "source": "./plugins/alpha", "description": "must load"},
     {"name": "control-npm", "source": {"source": "npm", "package": "left-pad", "version": "1.3.0"}, "description": "npm is not a documented Copilot source type"},
-    {"name": "control-bare", "source": "plugins/alpha", "description": "bare path without ./"}
+    {"name": "control-bare", "source": "plugins/alpha", "description": "bare path without ./"},
+    {"name": "control-unknown", "source": {"source": "not-a-source-type", "url": "https://example.com/x.git"}, "description": "a source type no tool defines; the known-rejected control for every tool"}
   ]
 }
 EOF
@@ -80,18 +84,30 @@ echo '{"name": "alpha", "version": "0.1.0", "description": "Spike plugin"}' > "$
 printf -- '---\nname: hello\ndescription: Say hello for the spike.\n---\n\nSay hello.\n' > "$SPIKE/mkt/plugins/alpha/skills/hello/SKILL.md"
 ```
 
-- [ ] **Step 3: Probe Copilot CLI catalog discovery in an isolated home**
+- [ ] **Step 3: Prove isolation with a read-only command, then probe Copilot CLI catalog discovery**
+
+Isolation is established before any command that writes.
 
 ```bash
 export COPILOT_HOME="$SPIKE/copilot-home" COPILOT_CACHE_HOME="$SPIKE/copilot-cache"
 copilot --version
+copilot plugin marketplace list
+find ~/.copilot -type f -exec shasum -a 256 {} + 2>/dev/null | sort | diff "$SPIKE/copilot-before.txt" - && echo "read-only command left real config unchanged"
+ls -R "$SPIKE" | head -20
+```
+
+Continue only if the real configuration is unchanged and the listing shows the two default marketplaces (proof the CLI read the isolated home rather than failing silently).
+If `copilot plugin --help` or the docs show another state location (for example under `~/.config` or `~/Library`), snapshot that location in Step 1 as well before continuing.
+
+```bash
 copilot plugin marketplace add "$SPIKE/mkt"; echo "add exit=$?"
 copilot plugin marketplace list
 copilot plugin marketplace browse spike-mkt --json | tee "$SPIKE/copilot-browse.json"; echo "browse exit=$?"
 ls -R "$COPILOT_HOME" | head -40
 ```
 
-Record: which entry names `browse` lists; whether either control is absent; whether any files appeared outside `$SPIKE`.
+Record: which entry names `browse` lists, and the observed handling (`accepted`, `rejected`, `absent`) of each control.
+Catalog discovery passes only if `alpha` is listed and `control-unknown` is absent.
 
 - [ ] **Step 4: Probe Copilot CLI package load in the same isolated home**
 
@@ -144,7 +160,7 @@ grep -rniE "marketplace|plugin" "$SPIKE/vsc/ud/logs" | head -60
 ```
 
 Then close that window.
-The gate passes only if a file under `$SPIKE/vsc` (a log or state file) machine-readably shows `alpha` accepted and at least one control rejected or absent.
+The gate passes only if a file under `$SPIKE/vsc` (a log or state file) machine-readably shows `alpha` accepted and `control-unknown` rejected or absent.
 A result visible only in the UI does not pass.
 If the source in Step 6 shows no log line or persisted state that names entries, record that and stop without further attempts.
 
@@ -207,6 +223,7 @@ extend-exclude = ["*.md", "docs/research"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # the formatter owns line length; long message strings stay intact
 ```
 
 `*.md` is excluded because ruff 0.16+ reformats Python blocks inside Markdown, which would corrupt archived evidence.
@@ -300,13 +317,7 @@ def test_list_markers_and_numbered_headings_are_not_sentences():
 
 
 def test_code_spans_fences_and_tables_are_ignored():
-    text = (
-        "Run `a. B` now.\n"
-        "```\n"
-        "x = 1. Y = 2.\n"
-        "```\n"
-        "| a. B | c. D |\n"
-    )
+    text = "Run `a. B` now.\n```\nx = 1. Y = 2.\n```\n| a. B | c. D |\n"
     assert violations(text) == []
 
 
@@ -480,7 +491,6 @@ git commit -m "chore: add repository skeleton, tooling, and Markdown sentence ch
 import json
 
 import pytest
-
 from mpcheck.jsonload import DuplicateKeyError, load_json
 from mpcheck.model import Finding, Severity
 
@@ -649,11 +659,15 @@ def test_covered_readers_load():
 
 def test_name_patterns():
     readers = load_readers()
-    assert readers["codex"].marketplace_name_re.fullmatch("my-market_1")
-    assert not readers["codex"].marketplace_name_re.fullmatch("my.market")
-    assert not readers["claude-code"].marketplace_name_re.fullmatch("has space")
-    assert readers["codex"].entry_name_re.fullmatch("a.b-c")
-    assert not readers["codex"].entry_name_re.fullmatch("a..b")
+    codex_market = readers["codex"].marketplace_name_re
+    claude_market = readers["claude-code"].marketplace_name_re
+    codex_entry = readers["codex"].entry_name_re
+    assert codex_market and claude_market and codex_entry
+    assert codex_market.fullmatch("my-market_1")
+    assert not codex_market.fullmatch("my.market")
+    assert not claude_market.fullmatch("has space")
+    assert codex_entry.fullmatch("a.b-c")
+    assert not codex_entry.fullmatch("a..b")
 
 
 def test_source_type_classification():
@@ -820,6 +834,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 AP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 AP_MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
@@ -834,7 +849,7 @@ def write(root: Path, rel: str, content: object) -> Path:
     return path
 
 
-def read(root: Path, rel: str) -> object:
+def read(root: Path, rel: str) -> Any:
     return json.loads((root / rel).read_text(encoding="utf-8"))
 
 
@@ -854,7 +869,6 @@ def remote(**extra: object) -> dict[str, object]:
 
 ```python
 from helpers import AP_SCHEMA, write
-
 from mpcheck.discover import discover
 from mpcheck.readers import load_readers
 
@@ -902,22 +916,34 @@ def test_bom_is_reported(tmp_path):
 
 def test_catalog_shape_errors(tmp_path):
     write(tmp_path, ".claude-plugin/marketplace.json", catalog(plugins={}))
-    write(tmp_path, ".agents/plugins/marketplace.json", catalog(plugins=[
-        {"name": "ok", "source": "./x"},
-        {"source": "./y"},
-        {"name": "no-source"},
-        "not-an-object",
-    ]))
+    write(
+        tmp_path,
+        ".agents/plugins/marketplace.json",
+        catalog(
+            plugins=[
+                {"name": "ok", "source": "./x"},
+                {"source": "./y"},
+                {"name": "no-source"},
+                "not-an-object",
+            ]
+        ),
+    )
     repo, findings = discover(tmp_path, READERS)
     assert ids(findings) == ["schema.parse.catalog-shape"] + ["schema.parse.entry-shape"] * 3
     assert [i for i, _ in repo.catalogs[".agents/plugins/marketplace.json"].entries] == [0]
     assert {f.pointer for f in findings if f.check.endswith("entry-shape")} == {
-        "/plugins/1", "/plugins/2", "/plugins/3"
+        "/plugins/1",
+        "/plugins/2",
+        "/plugins/3",
     }
 
 
 def test_local_plugin_manifests_are_indexed(tmp_path):
-    write(tmp_path, ".claude-plugin/marketplace.json", catalog(plugins=[{"name": "a", "source": "./p/a"}]))
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        catalog(plugins=[{"name": "a", "source": "./p/a"}]),
+    )
     write(tmp_path, "p/a/.claude-plugin/plugin.json", {"name": "a"})
     write(tmp_path, "p/a/plugin.json", {"$schema": AP_SCHEMA, "name": "a"})
     repo, findings = discover(tmp_path, READERS)
@@ -928,15 +954,25 @@ def test_local_plugin_manifests_are_indexed(tmp_path):
 
 
 def test_root_plugin_json_without_portable_schema(tmp_path):
-    write(tmp_path, ".claude-plugin/marketplace.json", catalog(plugins=[{"name": "a", "source": "./p/a"}]))
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        catalog(plugins=[{"name": "a", "source": "./p/a"}]),
+    )
     write(tmp_path, "p/a/plugin.json", {"name": "a"})
     repo, findings = discover(tmp_path, READERS)
     assert ids(findings) == ["local.portable-schema-missing"]
-    assert "plugin.json" not in repo.plugin_for({"source": "./p/a"}).manifests
+    plugin = repo.plugin_for({"source": "./p/a"})
+    assert plugin is not None
+    assert "plugin.json" not in plugin.manifests
 
 
 def test_symlinked_root_plugin_json(tmp_path):
-    write(tmp_path, ".claude-plugin/marketplace.json", catalog(plugins=[{"name": "a", "source": "./p/a"}]))
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        catalog(plugins=[{"name": "a", "source": "./p/a"}]),
+    )
     real = write(tmp_path, "elsewhere.json", {"$schema": AP_SCHEMA, "name": "a"})
     (tmp_path / "p/a").mkdir(parents=True)
     (tmp_path / "p/a/plugin.json").symlink_to(real)
@@ -1183,7 +1219,6 @@ Policy file format:
 
 ```python
 from helpers import write
-
 from mpcheck.policy import load_policy
 
 KNOWN = {"claude-code", "codex"}
@@ -1202,10 +1237,14 @@ def test_missing_policy_infers_readers_and_warns(tmp_path):
 
 
 def test_valid_policy(tmp_path):
-    write(tmp_path, "marketplace-policy.json", {
-        "readers": ["claude-code", "codex"],
-        "exceptions": [{"plugin": "x", "kind": "membership", "reason": "Claude only"}],
-    })
+    write(
+        tmp_path,
+        "marketplace-policy.json",
+        {
+            "readers": ["claude-code", "codex"],
+            "exceptions": [{"plugin": "x", "kind": "membership", "reason": "Claude only"}],
+        },
+    )
     policy, findings = load_policy(tmp_path, None, KNOWN, READING)
     assert findings == []
     assert policy.readers == ("claude-code", "codex")
@@ -1221,10 +1260,17 @@ def test_unknown_reader(tmp_path):
 
 
 def test_exception_without_reason(tmp_path):
-    write(tmp_path, "marketplace-policy.json", {
-        "readers": ["codex"],
-        "exceptions": [{"plugin": "x", "kind": "membership", "reason": "  "}, {"plugin": "y", "kind": "bogus", "reason": "r"}],
-    })
+    write(
+        tmp_path,
+        "marketplace-policy.json",
+        {
+            "readers": ["codex"],
+            "exceptions": [
+                {"plugin": "x", "kind": "membership", "reason": "  "},
+                {"plugin": "y", "kind": "bogus", "reason": "r"},
+            ],
+        },
+    )
     policy, findings = load_policy(tmp_path, None, KNOWN, READING)
     assert ids(findings) == ["policy.invalid-exception", "policy.invalid-exception"]
     assert policy.exceptions == ()
@@ -1241,6 +1287,13 @@ def test_explicit_policy_path(tmp_path):
     policy, findings = load_policy(tmp_path, custom, KNOWN, READING)
     assert findings == []
     assert policy.readers == ("codex",)
+
+
+def test_non_string_kind_is_invalid_not_a_crash(tmp_path):
+    exception = {"plugin": "x", "kind": [], "reason": "r"}
+    write(tmp_path, "marketplace-policy.json", {"readers": ["codex"], "exceptions": [exception]})
+    _, findings = load_policy(tmp_path, None, KNOWN, READING)
+    assert ids(findings) == ["policy.invalid-exception"]
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1365,7 +1418,8 @@ def load_policy(
         valid = (
             isinstance(item, dict)
             and isinstance(item.get("plugin"), str)
-            and item.get("kind") in EXCEPTION_KINDS
+            and isinstance(item.get("kind"), str)
+            and item["kind"] in EXCEPTION_KINDS
             and isinstance(item.get("reason"), str)
             and item["reason"].strip()
         )
@@ -1389,7 +1443,7 @@ def load_policy(
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest tests/test_policy.py -v`
-Expected: 6 passed.
+Expected: 7 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1411,6 +1465,7 @@ git commit -m "feat(validator): load marketplace policy with declared readers an
 
 **Interfaces:**
 - Consumes: `Repo`, `Catalog`, `resolve_local`, `discover` (Task 5); `Policy`, `POLICY_FILE`, `load_policy` (Task 6); `Reader`, `source_path`, `source_type`, `load_readers` (Task 4).
+- Produces: finding ids `local.reader-no-catalog`, `local.unread-catalog`, `local.source-type`, `local.path-prefix`, `local.path-traversal`, `local.path-escape`, `local.path-missing`, `local.path-invalid` (a Codex local object without a string `path`).
 - Produces: in `mpcheck.checks_local`, functions with the signature `(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]`: `check_reader_coverage`, `check_unread_catalogs`, `check_source_types`, `check_local_paths`; helper `active_catalogs(repo: Repo, policy: Policy) -> list[Catalog]`; list `LOCAL_CHECKS` that later tasks append to.
 - Produces: `tests/helpers.py` function `local_ids(root: Path) -> list[str]` returning sorted check ids from discovery, policy, and every function in `LOCAL_CHECKS`.
 
@@ -1513,7 +1568,9 @@ def test_unread_catalog_warns(market):
 
 def test_github_source_in_catalog_codex_reads(market):
     (market / CODEX).unlink()
-    set_entry(market, CLAUDE, 1, source={"source": "github", "repo": "example/beta", "sha": "a" * 40})
+    set_entry(
+        market, CLAUDE, 1, source={"source": "github", "repo": "example/beta", "sha": "a" * 40}
+    )
     assert local_ids(market) == ["local.source-type"]
 
 
@@ -1559,6 +1616,11 @@ def test_symlink_loop_is_reported(market):
 def test_remote_sources_skip_path_checks(market):
     set_entry(market, CLAUDE, 1, source=remote())
     assert local_ids(market) == []
+
+
+def test_local_object_without_string_path(market):
+    set_entry(market, CODEX, 0, source={"source": "local", "path": 7})
+    assert local_ids(market) == ["local.path-invalid"]
 ```
 
 - [ ] **Step 3: Run to verify failure**
@@ -1587,10 +1649,10 @@ Check = Callable[[Repo, dict[str, Reader], Policy], list[Finding]]
 def active_catalogs(repo: Repo, policy: Policy) -> list[Catalog]:
     return [c for c in repo.catalogs.values() if repo.readers_of(c.relpath, policy.readers)]
 
-
-def _readers_of(repo: Repo, readers: dict[str, Reader], policy: Policy, catalog: Catalog) -> list[Reader]:
+def _readers_of(
+    repo: Repo, readers: dict[str, Reader], policy: Policy, catalog: Catalog
+) -> list[Reader]:
     return [readers[r] for r in repo.readers_of(catalog.relpath, policy.readers)]
-
 
 def check_reader_coverage(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     return [
@@ -1607,7 +1669,6 @@ def check_reader_coverage(repo: Repo, readers: dict[str, Reader], policy: Policy
         if repo.reader_catalog.get(r) is None
     ]
 
-
 def check_unread_catalogs(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     active = {c.relpath for c in active_catalogs(repo, policy)}
     return [
@@ -1622,7 +1683,6 @@ def check_unread_catalogs(repo: Repo, readers: dict[str, Reader], policy: Policy
         for rel in repo.catalogs
         if rel not in active
     ]
-
 
 def check_source_types(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
@@ -1646,7 +1706,6 @@ def check_source_types(repo: Repo, readers: dict[str, Reader], policy: Policy) -
                     )
     return findings
 
-
 def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
     for catalog in active_catalogs(repo, policy):
@@ -1655,9 +1714,18 @@ def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) ->
         ]
         for index, entry in catalog.entries:
             rel = source_path(entry["source"])
-            if rel is None:
-                continue
             where = {"file": catalog.relpath, "pointer": f"/plugins/{index}/source", "rule": "R3"}
+            if rel is None:
+                if source_type(entry["source"]) == "local-object":
+                    findings.append(
+                        Finding(
+                            "local.path-invalid",
+                            Severity.ERROR,
+                            message="a local source object needs a string 'path'",
+                            **where,
+                        )
+                    )
+                continue
             if needs_prefix and not (rel == "." or rel.startswith("./")):
                 findings.append(
                     Finding(
@@ -1726,7 +1794,7 @@ Note for the symlink-loop test: on Python 3.12 `Path.resolve()` in non-strict mo
 - [ ] **Step 5: Run to verify pass**
 
 Run: `uv run pytest tests/test_checks_paths.py -v`
-Expected: 12 passed.
+Expected: 13 passed.
 
 - [ ] **Step 6: Commit**
 
@@ -1781,8 +1849,16 @@ def test_entry_name_with_space(market):
 
 
 def test_manifest_name_mismatch(market):
-    write(market, "plugins/alpha/.claude-plugin/plugin.json",
-          {"name": "alpha-renamed", "version": "1.2.0", "description": "Alpha", "author": {"name": "T"}})
+    write(
+        market,
+        "plugins/alpha/.claude-plugin/plugin.json",
+        {
+            "name": "alpha-renamed",
+            "version": "1.2.0",
+            "description": "Alpha",
+            "author": {"name": "T"},
+        },
+    )
     assert local_ids(market) == ["local.name-mismatch", "local.name-mismatch"]
 ```
 
@@ -1895,7 +1971,7 @@ git commit -m "feat(validator): check marketplace and entry names against every 
 - Test: `tests/test_checks_versions.py`
 
 **Interfaces:**
-- Produces: `check_versions` emitting `local.version-mismatch` (error, R6) and `local.version-missing` (warning, R6); `check_parity` emitting `local.parity-membership`, `local.parity-version`, `local.parity-source` (errors, R10) and `policy.unused-exception` (warning, R10).
+- Produces: `check_versions` emitting `local.version-mismatch` (error, R6), `local.version-field-missing` (warning, R6: a manifest lacks the version other fields record), and `local.version-missing` (warning, R6: a resolvable local plugin has no version anywhere); `check_parity` emitting `local.parity-membership`, `local.parity-version`, `local.parity-source` (errors, R10) and `policy.unused-exception` (warning, R10).
 - Produces: helper `pin_of(source: object) -> str | None` returning `"path:<posix path>"`, `"sha:<sha>"`, `"sha256:<digest>"`, `"npm:<version>"`, or `None`.
 
 Design note: R6 applies within one catalog and the manifests its entry points at; a difference *between* catalogs is R10's concern and can carry a recorded reason.
@@ -1917,9 +1993,16 @@ def set_entry(root, catalog, index, **changes):
 
 
 def test_manifest_versions_disagree(market):
-    write(market, "plugins/alpha/plugin.json", {
-        "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-        "name": "alpha", "version": "1.3.0", "description": "Alpha"})
+    write(
+        market,
+        "plugins/alpha/plugin.json",
+        {
+            "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+            "name": "alpha",
+            "version": "1.3.0",
+            "description": "Alpha",
+        },
+    )
     assert local_ids(market) == ["local.version-mismatch", "local.version-mismatch"]
 
 
@@ -1947,8 +2030,16 @@ def test_membership_exception_suppresses(market):
     data = read(market, CODEX)
     data["plugins"] = data["plugins"][:1]
     write(market, CODEX, data)
-    write(market, POLICY, {"readers": ["claude-code", "codex"], "exceptions": [
-        {"plugin": "beta", "kind": "membership", "reason": "Claude-only for now"}]})
+    write(
+        market,
+        POLICY,
+        {
+            "readers": ["claude-code", "codex"],
+            "exceptions": [
+                {"plugin": "beta", "kind": "membership", "reason": "Claude-only for now"}
+            ],
+        },
+    )
     assert local_ids(market) == []
 
 
@@ -1963,8 +2054,14 @@ def test_source_pin_difference_between_catalogs(market):
 
 
 def test_unused_exception_warns(market):
-    write(market, POLICY, {"readers": ["claude-code", "codex"], "exceptions": [
-        {"plugin": "alpha", "kind": "version", "reason": "stale"}]})
+    write(
+        market,
+        POLICY,
+        {
+            "readers": ["claude-code", "codex"],
+            "exceptions": [{"plugin": "alpha", "kind": "version", "reason": "stale"}],
+        },
+    )
     assert local_ids(market) == ["policy.unused-exception"]
 
 
@@ -1972,6 +2069,13 @@ def test_single_catalog_has_no_parity_findings(market):
     (market / CODEX).unlink()
     write(market, POLICY, {"readers": ["claude-code"]})
     assert local_ids(market) == []
+
+
+def test_one_manifest_missing_its_version(market):
+    data = read(market, "plugins/alpha/plugin.json")
+    del data["version"]
+    write(market, "plugins/alpha/plugin.json", data)
+    assert local_ids(market) == ["local.version-field-missing", "local.version-field-missing"]
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1981,10 +2085,13 @@ Expected: FAIL — missing ids (for example `assert [] == ['local.version-mismat
 
 - [ ] **Step 3: Implement version and parity checks**
 
+Add `import posixpath` to the imports at the top of `checks_local.py`; `pin_of` normalises local paths lexically so `./plugins/a` and `plugins/../plugins/a` compare equal.
 Add to `checks_local.py`, before `LOCAL_CHECKS`:
 
 ```python
-def _version_values(repo: Repo, catalog: Catalog, index: int, entry: dict[str, object]) -> dict[str, str]:
+def _version_values(
+    repo: Repo, catalog: Catalog, index: int, entry: dict[str, object]
+) -> dict[str, str]:
     values: dict[str, str] = {}
     version = entry.get("version")
     if isinstance(version, str):
@@ -1997,7 +2104,6 @@ def _version_values(repo: Repo, catalog: Catalog, index: int, entry: dict[str, o
             if isinstance(manifest_version, str):
                 values[f"{prefix}/{manifest_rel}#/version"] = manifest_version
     return values
-
 
 def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
@@ -2016,7 +2122,24 @@ def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> li
                         pointer=f"/plugins/{index}",
                     )
                 )
-            elif not values and source_path(entry["source"]) is not None:
+            elif values and (plugin := repo.plugin_for(entry)) is not None:
+                prefix = plugin.directory.relative_to(repo.root).as_posix()
+                recorded = next(iter(values.values()))
+                for manifest_rel, manifest in plugin.manifests.items():
+                    if not isinstance(manifest.get("version"), str):
+                        findings.append(
+                            Finding(
+                                "local.version-field-missing",
+                                Severity.WARNING,
+                                catalog.relpath,
+                                f"{prefix}/{manifest_rel} has no version while other fields "
+                                f"record {recorded}; the reader that uses this manifest derives "
+                                "a version of its own instead",
+                                rule="R6",
+                                pointer=f"/plugins/{index}",
+                            )
+                        )
+            elif not values and repo.plugin_for(entry) is not None:
                 findings.append(
                     Finding(
                         "local.version-missing",
@@ -2031,11 +2154,10 @@ def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> li
                 )
     return findings
 
-
 def pin_of(source: object) -> str | None:
     rel = source_path(source)
     if rel is not None:
-        return "path:" + Path(rel).as_posix()
+        return "path:" + posixpath.normpath(Path(rel).as_posix())
     if isinstance(source, dict):
         for key in ("sha", "sha256"):
             value = source.get(key)
@@ -2045,7 +2167,6 @@ def pin_of(source: object) -> str | None:
         if source.get("source") == "npm" and isinstance(version, str):
             return "npm:" + version
     return None
-
 
 def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
@@ -2123,7 +2244,7 @@ Note on `test_source_pin_difference_between_catalogs`: local entries compare as 
 - [ ] **Step 4: Run to verify pass, then the whole suite**
 
 Run: `uv run pytest tests/test_checks_versions.py -v && uv run pytest -q`
-Expected: 9 passed; the full suite passes.
+Expected: 10 passed; the full suite passes, including Task 7's `test_traversal`, which would fail if `version-missing` fired for an unresolvable source or if pins were compared without normalisation.
 
 - [ ] **Step 5: Commit**
 
@@ -2216,7 +2337,9 @@ def test_entry_hooks_inline_object_passes(market):
 
 
 def test_portable_plugin_with_only_dot_mcp(market):
-    write(market, "plugins/alpha/.mcp.json", {"mcpServers": {"x": {"command": "uvx", "args": ["x"]}}})
+    write(
+        market, "plugins/alpha/.mcp.json", {"mcpServers": {"x": {"command": "uvx", "args": ["x"]}}}
+    )
     assert local_ids(market) == ["local.portable-mcp-missing"]
 ```
 
@@ -2239,14 +2362,20 @@ Add before `LOCAL_CHECKS`:
 
 ```python
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+
 EXACT_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 
-
 def _pin_finding(check: str, catalog: Catalog, index: int, message: str) -> Finding:
-    return Finding(check, Severity.ERROR, catalog.relpath, message, rule="R4",
-                   pointer=f"/plugins/{index}/source")
-
+    return Finding(
+        check,
+        Severity.ERROR,
+        catalog.relpath,
+        message,
+        rule="R4",
+        pointer=f"/plugins/{index}/source",
+    )
 
 def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
@@ -2260,35 +2389,72 @@ def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[F
             if kind in GIT_SOURCE_TYPES:
                 sha = source.get("sha")
                 if sha is None:
-                    findings.append(_pin_finding("local.pin-missing", catalog, index,
-                        f"git source for {name!r} has no 'sha'; a moving ref ships whatever is pushed next"))
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"git source for {name!r} has no 'sha'; a moving ref ships whatever is pushed next",
+                        )
+                    )
                 elif not (isinstance(sha, str) and SHA_RE.fullmatch(sha)):
-                    findings.append(_pin_finding("local.pin-malformed", catalog, index,
-                        f"'sha' for {name!r} must be a full 40-character lowercase commit SHA"))
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-malformed",
+                            catalog,
+                            index,
+                            f"'sha' for {name!r} must be a full 40-character lowercase commit SHA",
+                        )
+                    )
             elif kind == "archive":
                 digest = source.get("sha256")
                 if digest is None:
-                    findings.append(_pin_finding("local.pin-missing", catalog, index,
-                        f"archive source for {name!r} has no 'sha256'"))
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"archive source for {name!r} has no 'sha256'",
+                        )
+                    )
                 elif not (isinstance(digest, str) and SHA256_RE.fullmatch(digest)):
-                    findings.append(_pin_finding("local.pin-malformed", catalog, index,
-                        f"'sha256' for {name!r} must be 64 hex characters"))
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-malformed",
+                            catalog,
+                            index,
+                            f"'sha256' for {name!r} must be 64 hex characters",
+                        )
+                    )
             elif kind == "npm":
                 version = source.get("version")
                 if not (isinstance(version, str) and EXACT_SEMVER_RE.fullmatch(version)):
-                    findings.append(_pin_finding("local.pin-missing", catalog, index,
-                        f"npm source for {name!r} needs an exact 'version', not a range or dist-tag"))
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"npm source for {name!r} needs an exact 'version', not a range or dist-tag",
+                        )
+                    )
             elif kind == "command":
-                findings.append(_pin_finding("local.pin-unpinnable", catalog, index,
-                    f"command source for {name!r} cannot be pinned and must not appear in a "
-                    "published catalog"))
+                findings.append(
+                    _pin_finding(
+                        "local.pin-unpinnable",
+                        catalog,
+                        index,
+                        f"command source for {name!r} cannot be pinned and must not appear in a "
+                        "published catalog",
+                    )
+                )
     return findings
-
 
 def check_entry_hooks(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
     for catalog in active_catalogs(repo, policy):
-        hook_readers = [r for r in _readers_of(repo, readers, policy, catalog) if r.reads_entry_hooks]
+        hook_readers = [
+            r for r in _readers_of(repo, readers, policy, catalog) if r.reads_entry_hooks
+        ]
         if not hook_readers:
             continue
         for index, entry in catalog.entries:
@@ -2305,7 +2471,6 @@ def check_entry_hooks(repo: Repo, readers: dict[str, Reader], policy: Policy) ->
                     )
                 )
     return findings
-
 
 def check_portable_mcp(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
@@ -2356,8 +2521,11 @@ git commit -m "feat(validator): check source pins, entry hooks, and portable MCP
 - Test: `tests/test_checks_schema.py`
 
 **Interfaces:**
-- Produces: `check_portable(repo: Repo) -> list[Finding]` emitting `schema.portable.unsupported-version`, `schema.portable.manifest` (warning when tolerated by the spec, error otherwise), `schema.portable.mcp`, `schema.portable.mcp-server`.
+- Produces: `PortableCounts(manifests: int, mcp_files: int, servers: int)` with `note() -> str` (for example `"manifests=1 mcp.json=0 servers=0"`), so the status table says what was examined.
+- Produces: `check_portable(repo: Repo) -> tuple[list[Finding], PortableCounts]` emitting `schema.portable.unsupported-version`, `schema.portable.manifest` (warning when tolerated by the spec, error otherwise), `schema.portable.mcp`, `schema.portable.mcp-server`.
 - Produces: `run_claude_validate(repo: Repo, runner: Runner = ..., which: Callable[[str], str | None] = shutil.which) -> tuple[list[Finding], Status, str]` emitting `schema.claude-validate.error`, `schema.claude-validate.warning`, `schema.claude-validate.crashed`; the `str` is a note for the status table.
+- Status contract: `SKIPPED` when there is nothing to validate or `claude` is absent; `INCONCLUSIVE` when any run yields no usable report (unparseable output, missing `manifest` or `success`, an exit code other than 0 or 1, or `success` contradicting the exit code); otherwise `FAILED` if any error finding, else `PASSED`.
+- MCP granularity: the `mcp.json` envelope is validated with `mcpServers` emptied (a failure disables MCP), then each server is validated alone against `#/$defs/server` (a failure skips only that server).
 - `Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]`.
 
 - [ ] **Step 1: Vendor the schemas and record their digests**
@@ -2375,20 +2543,20 @@ If they differ, the upstream schema changed since the design; stop and report ra
 - [ ] **Step 2: Write the failing tests**
 
 ```python
+import hashlib
 import json
 import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
-from helpers import AP_MCP_SCHEMA, AP_SCHEMA, write
-
+from helpers import AP_MCP_SCHEMA, AP_SCHEMA, read, write
 from mpcheck.checks_schema import SCHEMAS_DIR, check_portable, run_claude_validate
 from mpcheck.discover import discover
 from mpcheck.model import Status
 from mpcheck.readers import load_readers
 
 READERS = load_readers()
+FOUND = "/usr/local/bin/claude"
 
 
 def repo_of(root):
@@ -2399,51 +2567,91 @@ def ids(findings):
     return sorted(f.check for f in findings)
 
 
-def test_vendored_schemas_match_recorded_digests():
-    import hashlib
+def portable(root):
+    return check_portable(repo_of(root))[0]
 
-    for line in (SCHEMAS_DIR.parent / "SHA256SUMS").read_text().splitlines():
+
+def test_vendored_schemas_match_recorded_digests():
+    sums = SCHEMAS_DIR.parent / "SHA256SUMS"
+    for line in sums.read_text(encoding="utf-8").splitlines():
         digest, name = line.split(maxsplit=1)
         assert hashlib.sha256((SCHEMAS_DIR.parent / name).read_bytes()).hexdigest() == digest
 
 
 def test_clean_portable_manifest(market):
-    assert check_portable(repo_of(market)) == []
+    assert portable(market) == []
 
 
 def test_unknown_top_level_key_is_a_warning(market):
-    write(market, "plugins/alpha/plugin.json", {"$schema": AP_SCHEMA, "name": "alpha", "version": "1.2.0", "bogus": 1})
-    findings = check_portable(repo_of(market))
-    assert [(f.check, f.severity) for f in findings] == [("schema.portable.manifest", "warning")]
+    write(
+        market,
+        "plugins/alpha/plugin.json",
+        {"$schema": AP_SCHEMA, "name": "alpha", "version": "1.2.0", "bogus": 1},
+    )
+    assert [(f.check, f.severity) for f in portable(market)] == [
+        ("schema.portable.manifest", "warning")
+    ]
 
 
 def test_bad_name_is_an_error(market):
-    write(market, "plugins/alpha/plugin.json", {"$schema": AP_SCHEMA, "name": "Alpha", "version": "1.2.0"})
-    findings = check_portable(repo_of(market))
-    assert [(f.check, f.severity, f.pointer) for f in findings] == [("schema.portable.manifest", "error", "/name")]
+    write(
+        market,
+        "plugins/alpha/plugin.json",
+        {"$schema": AP_SCHEMA, "name": "Alpha", "version": "1.2.0"},
+    )
+    assert [(f.check, f.severity, f.pointer) for f in portable(market)] == [
+        ("schema.portable.manifest", "error", "/name")
+    ]
 
 
 def test_unsupported_schema_version(market):
-    write(market, "plugins/alpha/plugin.json", {"$schema": "https://agent-plugins.org/schemas/9.9.9/plugin.schema.json", "name": "alpha"})
-    assert ids(check_portable(repo_of(market))) == ["schema.portable.unsupported-version"]
+    write(
+        market,
+        "plugins/alpha/plugin.json",
+        {"$schema": "https://agent-plugins.org/schemas/9.9.9/plugin.schema.json", "name": "alpha"},
+    )
+    assert ids(portable(market)) == ["schema.portable.unsupported-version"]
 
 
 def test_invalid_server_is_skipped_not_fatal(market):
-    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {
-        "good": {"type": "stdio", "command": "uvx"}, "bad": {"command": "uvx"}}})
-    findings = check_portable(repo_of(market))
-    assert [(f.check, f.pointer) for f in findings] == [("schema.portable.mcp-server", "/mcpServers/bad")]
+    servers = {"good": {"type": "stdio", "command": "uvx"}, "bad": {"command": "uvx"}}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": servers})
+    assert [(f.check, f.pointer) for f in portable(market)] == [
+        ("schema.portable.mcp-server", "/mcpServers/bad")
+    ]
+
+
+def test_mcp_envelope_error_disables_mcp(market):
+    write(
+        market,
+        "plugins/alpha/mcp.json",
+        {"$schema": AP_MCP_SCHEMA, "mcpServers": {}, "extra": 1},
+    )
+    assert ids(portable(market)) == ["schema.portable.mcp"]
 
 
 def test_mcp_version_must_match_plugin(market):
-    write(market, "plugins/alpha/mcp.json", {"$schema": "https://agent-plugins.org/schemas/1.1.0/mcp.schema.json", "mcpServers": {}})
-    assert ids(check_portable(repo_of(market))) == ["schema.portable.mcp"]
+    write(
+        market,
+        "plugins/alpha/mcp.json",
+        {"$schema": "https://agent-plugins.org/schemas/1.1.0/mcp.schema.json", "mcpServers": {}},
+    )
+    assert ids(portable(market)) == ["schema.portable.mcp"]
+
+
+def test_portable_counts_what_was_checked(market):
+    servers = {"a": {"type": "stdio", "command": "uvx"}, "b": {"type": "stdio", "command": "uvx"}}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": servers})
+    findings, counts = check_portable(repo_of(market))
+    assert findings == []
+    assert counts.note() == "manifests=1 mcp.json=1 servers=2"
 
 
 def fake_runner(stdout, returncode=0):
     def run(argv):
         assert argv[:5] == ["claude", "plugin", "validate", "--strict", "--json"]
         return subprocess.CompletedProcess(argv, returncode, stdout=stdout, stderr="")
+
     return run
 
 
@@ -2454,13 +2662,18 @@ def test_claude_missing_is_skipped(market):
 
 
 def test_claude_report_is_mapped(market):
-    report = {"success": False, "manifest": {
-        "file": str((market / ".claude-plugin/marketplace.json").resolve()),
-        "errors": [{"path": "plugins.1.source", "message": "Invalid input"}],
-        "warnings": [{"path": "plugins[0].x", "message": "Unknown field 'x'."}]},
-        "contents": []}
-    findings, status, _ = run_claude_validate(repo_of(market), runner=fake_runner(json.dumps(report), 1), which=lambda _: "/bin/claude")
-    assert status == Status.PASSED
+    report = {
+        "success": False,
+        "manifest": {
+            "file": str((market / ".claude-plugin/marketplace.json").resolve()),
+            "errors": [{"path": "plugins.1.source", "message": "Invalid input"}],
+            "warnings": [{"path": "plugins[0].x", "message": "Unknown field 'x'."}],
+        },
+        "contents": [],
+    }
+    runner = fake_runner(json.dumps(report), 1)
+    findings, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
+    assert status == Status.FAILED
     errors = [f for f in findings if f.check == "schema.claude-validate.error"]
     assert errors and errors[0].file == ".claude-plugin/marketplace.json"
     assert errors[0].pointer == "plugins.1.source"
@@ -2468,20 +2681,37 @@ def test_claude_report_is_mapped(market):
 
 
 def test_claude_garbage_is_inconclusive(market):
-    findings, status, _ = run_claude_validate(repo_of(market), runner=fake_runner("not json", 2), which=lambda _: "/bin/claude")
+    runner = fake_runner("not json", 2)
+    findings, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
     assert status == Status.INCONCLUSIVE
     assert "schema.claude-validate.crashed" in ids(findings)
 
 
+def test_claude_empty_report_is_inconclusive(market):
+    runner = fake_runner("{}", 2)
+    findings, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
+    assert status == Status.INCONCLUSIVE
+    assert ids(findings) == ["schema.claude-validate.crashed"] * 2
+
+
+def test_claude_success_flag_contradicting_exit_code_is_inconclusive(market):
+    report = {"success": True, "manifest": {"errors": [], "warnings": []}, "contents": []}
+    runner = fake_runner(json.dumps(report), 1)
+    _, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
+    assert status == Status.INCONCLUSIVE
+
+
 @pytest.mark.skipif(shutil.which("claude") is None, reason="claude not installed")
 def test_real_claude_catches_a_known_defect(market):
-    from helpers import read
     data = read(market, ".claude-plugin/marketplace.json")
     data["plugins"][0]["source"] = "plugins/alpha"
     write(market, ".claude-plugin/marketplace.json", data)
     findings, status, _ = run_claude_validate(repo_of(market))
-    assert status == Status.PASSED
-    assert any(f.check == "schema.claude-validate.error" and "plugins.0.source" in f.pointer for f in findings)
+    assert status == Status.FAILED
+    assert any(
+        f.check == "schema.claude-validate.error" and "plugins.0.source" in f.pointer
+        for f in findings
+    )
 ```
 
 `test_real_claude_catches_a_known_defect` is the known positive for the wrapper: it proves the real tool's output reaches the findings, so a clean result elsewhere is not a broken instrument.
@@ -2501,7 +2731,8 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
@@ -2515,6 +2746,18 @@ PORTABLE_REF = "references/agent-plugins.md"
 CLAUDE_REF = "references/claude-code.md"
 
 Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]
+
+
+@dataclass
+class PortableCounts:
+    """What the portable check actually examined, for the status table."""
+
+    manifests: int = 0
+    mcp_files: int = 0
+    servers: int = 0
+
+    def note(self) -> str:
+        return f"manifests={self.manifests} mcp.json={self.mcp_files} servers={self.servers}"
 
 
 def _default_runner(argv: list[str]) -> subprocess.CompletedProcess[str]:
@@ -2532,74 +2775,129 @@ def _version_of(schema_url: object) -> str | None:
     return parts[-2] if len(parts) >= 2 else None
 
 
-def _pointer(path: list[object]) -> str:
+def _pointer(path: Sequence[object]) -> str:
     return "/" + "/".join(str(part) for part in path) if path else ""
 
 
-def _check_mcp(directory: Path, prefix: str, version: str) -> list[Finding]:
+def _check_mcp(directory: Path, prefix: str, version: str, counts: PortableCounts) -> list[Finding]:
     path = directory / "mcp.json"
     if not path.is_file():
         return []
+    counts.mcp_files += 1
     rel = f"{prefix}/mcp.json"
+
+    def disabled(message: str, pointer: str = "") -> Finding:
+        return Finding(
+            "schema.portable.mcp",
+            Severity.ERROR,
+            rel,
+            f"MCP disabled by conforming clients: {message}",
+            pointer=pointer,
+            source=PORTABLE_REF,
+        )
+
     try:
         data = load_json(path)
     except (DuplicateKeyError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-        return [Finding("schema.portable.mcp", Severity.ERROR, rel,
-                        f"MCP disabled by conforming clients: not valid JSON: {exc}", source=PORTABLE_REF)]
-    schema_url = data.get("$schema") if isinstance(data, dict) else None
-    if _version_of(schema_url) != version:
-        return [Finding("schema.portable.mcp", Severity.ERROR, rel,
-                        "MCP disabled by conforming clients: mcp.json $schema must use the same "
-                        f"spec version as plugin.json ({version})", pointer="/$schema", source=PORTABLE_REF)]
+        return [disabled(f"not valid JSON: {exc}")]
+    if not isinstance(data, dict):
+        return [disabled("mcp.json must be a JSON object")]
+    if _version_of(data.get("$schema")) != version:
+        return [
+            disabled(
+                f"mcp.json $schema must use the same spec version as plugin.json ({version})",
+                "/$schema",
+            )
+        ]
+    schema = _schema(version, "mcp")
+    servers = data.get("mcpServers")
+    # The envelope is validated with the servers removed, so one bad server cannot
+    # masquerade as a file-level failure; each server is then validated on its own.
+    envelope = {**data, "mcpServers": {}} if isinstance(servers, dict) else data
+    envelope_errors = list(Draft202012Validator(schema).iter_errors(envelope))
+    if envelope_errors:
+        return [disabled(e.message, _pointer(list(e.absolute_path))) for e in envelope_errors]
+    assert isinstance(servers, dict)
+    server_validator = Draft202012Validator({"$ref": "#/$defs/server", "$defs": schema["$defs"]})
     findings: list[Finding] = []
-    for error in Draft202012Validator(_schema(version, "mcp")).iter_errors(data):
-        path_parts = list(error.absolute_path)
-        if len(path_parts) >= 2 and path_parts[0] == "mcpServers":
-            findings.append(Finding("schema.portable.mcp-server", Severity.ERROR, rel,
-                                    f"server {path_parts[1]!r} skipped by conforming clients: {error.message}",
-                                    pointer=_pointer(path_parts[:2]), source=PORTABLE_REF))
-        else:
-            findings.append(Finding("schema.portable.mcp", Severity.ERROR, rel,
-                                    f"MCP disabled by conforming clients: {error.message}",
-                                    pointer=_pointer(path_parts), source=PORTABLE_REF))
+    for name, server in servers.items():
+        counts.servers += 1
+        for error in server_validator.iter_errors(server):
+            findings.append(
+                Finding(
+                    "schema.portable.mcp-server",
+                    Severity.ERROR,
+                    rel,
+                    f"server {name!r} skipped by conforming clients: {error.message}",
+                    pointer=_pointer(["mcpServers", name, *error.absolute_path]),
+                    source=PORTABLE_REF,
+                )
+            )
     return findings
 
 
-def check_portable(repo: Repo) -> list[Finding]:
+def check_portable(repo: Repo) -> tuple[list[Finding], PortableCounts]:
     findings: list[Finding] = []
+    counts = PortableCounts()
     vendored = sorted(p.name for p in SCHEMAS_DIR.iterdir() if p.is_dir())
     for plugin in repo.plugins.values():
         manifest = plugin.manifests.get("plugin.json")
         if manifest is None:
             continue
+        counts.manifests += 1
         prefix = plugin.directory.relative_to(repo.root).as_posix()
         rel = f"{prefix}/plugin.json"
         version = _version_of(manifest.get("$schema"))
-        if version not in vendored:
-            findings.append(Finding("schema.portable.unsupported-version", Severity.ERROR, rel,
-                                    f"unsupported Agent Plugins schema {manifest.get('$schema')!r}; "
-                                    f"vendored versions: {', '.join(vendored)}",
-                                    pointer="/$schema", source=PORTABLE_REF))
+        if version is None or version not in vendored:
+            findings.append(
+                Finding(
+                    "schema.portable.unsupported-version",
+                    Severity.ERROR,
+                    rel,
+                    f"unsupported Agent Plugins schema {manifest.get('$schema')!r}; "
+                    f"vendored versions: {', '.join(vendored)}",
+                    pointer="/$schema",
+                    source=PORTABLE_REF,
+                )
+            )
             continue
-        assert version is not None
         for error in Draft202012Validator(_schema(version, "plugin")).iter_errors(manifest):
             path_parts = list(error.absolute_path)
             tolerated = (error.validator == "additionalProperties" and not path_parts) or (
                 path_parts == ["extensions"] and error.validator == "type"
             )
-            prefix_text = ("reported and ignored by conforming clients: " if tolerated
-                           else "plugin rejected by conforming clients: ")
-            findings.append(Finding("schema.portable.manifest",
-                                    Severity.WARNING if tolerated else Severity.ERROR, rel,
-                                    prefix_text + error.message, pointer=_pointer(path_parts),
-                                    source=PORTABLE_REF))
-        findings.extend(_check_mcp(plugin.directory, prefix, version))
-    return findings
+            outcome = (
+                "reported and ignored by conforming clients: "
+                if tolerated
+                else "plugin rejected by conforming clients: "
+            )
+            findings.append(
+                Finding(
+                    "schema.portable.manifest",
+                    Severity.WARNING if tolerated else Severity.ERROR,
+                    rel,
+                    outcome + error.message,
+                    pointer=_pointer(path_parts),
+                    source=PORTABLE_REF,
+                )
+            )
+        findings.extend(_check_mcp(plugin.directory, prefix, version, counts))
+    return findings, counts
 
 
 def _rel(root: Path, path: Path) -> str:
     resolved = path.resolve()
     return resolved.relative_to(root).as_posix() if resolved.is_relative_to(root) else str(path)
+
+
+def _crashed(repo: Repo, target: Path, reason: str) -> Finding:
+    return Finding(
+        "schema.claude-validate.crashed",
+        Severity.ERROR,
+        _rel(repo.root, target),
+        f"claude plugin validate produced no usable report: {reason}",
+        source=CLAUDE_REF,
+    )
 
 
 def run_claude_validate(
@@ -2610,36 +2908,61 @@ def run_claude_validate(
     targets: list[Path] = []
     if (repo.root / ".claude-plugin/marketplace.json").is_file():
         targets.append(repo.root)
-    targets += [p.directory for p in repo.plugins.values() if ".claude-plugin/plugin.json" in p.manifests]
+    targets += [
+        p.directory for p in repo.plugins.values() if ".claude-plugin/plugin.json" in p.manifests
+    ]
     if not targets:
         return [], Status.SKIPPED, "no Claude Code catalog or plugin manifest"
     if which("claude") is None:
         return [], Status.SKIPPED, "claude not on PATH"
     findings: list[Finding] = []
-    status = Status.PASSED
+    inconclusive = False
     for target in targets:
         try:
             proc = runner(["claude", "plugin", "validate", "--strict", "--json", str(target)])
             report = json.loads(proc.stdout)
-            if not isinstance(report, dict):
-                raise ValueError("report is not a JSON object")
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError, ValueError) as exc:
-            findings.append(Finding("schema.claude-validate.crashed", Severity.ERROR, _rel(repo.root, target),
-                                    f"claude plugin validate produced no report: {exc}", source=CLAUDE_REF))
-            status = Status.INCONCLUSIVE
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
+            findings.append(_crashed(repo, target, str(exc)))
+            inconclusive = True
             continue
-        items = [report.get("manifest") or {}, *(report.get("contents") or [])]
-        for item in items:
+        # Exit 0 means success and 1 means failure; anything else, or a report whose
+        # shape or success flag disagrees with the exit code, is not evidence either way.
+        if (
+            not isinstance(report, dict)
+            or not isinstance(report.get("manifest"), dict)
+            or not isinstance(report.get("success"), bool)
+            or proc.returncode not in (0, 1)
+            or report["success"] != (proc.returncode == 0)
+        ):
+            findings.append(
+                _crashed(repo, target, f"exit {proc.returncode} with an unexpected report shape")
+            )
+            inconclusive = True
+            continue
+        for item in [report["manifest"], *(report.get("contents") or [])]:
             if not isinstance(item, dict):
                 continue
             file = _rel(repo.root, Path(str(item.get("file", target))))
-            for key, severity, suffix in (("errors", Severity.ERROR, "error"),
-                                          ("warnings", Severity.WARNING, "warning")):
+            for key, severity, suffix in (
+                ("errors", Severity.ERROR, "error"),
+                ("warnings", Severity.WARNING, "warning"),
+            ):
                 for issue in item.get(key) or []:
-                    findings.append(Finding(f"schema.claude-validate.{suffix}", severity, file,
-                                            str(issue.get("message", "")),
-                                            pointer=str(issue.get("path", "")), source=CLAUDE_REF))
-    return findings, status, ""
+                    findings.append(
+                        Finding(
+                            f"schema.claude-validate.{suffix}",
+                            severity,
+                            file,
+                            str(issue.get("message", "")),
+                            pointer=str(issue.get("path", "")),
+                            source=CLAUDE_REF,
+                        )
+                    )
+    if inconclusive:
+        return findings, Status.INCONCLUSIVE, "a validator run produced no usable report"
+    if any(f.severity == Severity.ERROR for f in findings):
+        return findings, Status.FAILED, ""
+    return findings, Status.PASSED, ""
 ```
 
 Run `uv run ruff format skills/plugin-marketplaces/scripts/mpcheck/checks_schema.py`.
@@ -2647,7 +2970,7 @@ Run `uv run ruff format skills/plugin-marketplaces/scripts/mpcheck/checks_schema
 - [ ] **Step 5: Run to verify pass**
 
 Run: `uv run pytest tests/test_checks_schema.py -v`
-Expected: 11 passed (10 if `claude` is not installed, with 1 skipped).
+Expected: 15 passed (14 if `claude` is not installed, with 1 skipped).
 
 - [ ] **Step 6: Commit**
 
@@ -2670,6 +2993,7 @@ git commit -m "feat(validator): add schema level with vendored Agent Plugins sch
 - Consumes: everything above.
 - Produces: `mpcheck.run.GROUPS: tuple[str, ...]`, `mpcheck.run.Report(findings: list[Finding], statuses: dict[str, tuple[Status, str]])` with `exit_code(fail_on: Severity) -> int`, and `run_checks(root: Path, policy_path: Path | None = None, use_claude: bool = True, runner: Runner | None = None) -> Report`.
 - Produces: `mpcheck.report.render_text(report) -> str`, `render_json(report) -> str`.
+- Status rules: `local` is `SKIPPED` when it found no errors and no catalog is read by a declared reader; `schema.portable` is `SKIPPED` with no portable manifests and otherwise carries `PortableCounts.note()`; `schema.claude-validate` carries the wrapper's own status; `remote`, `discovery`, `package-load` are `SKIPPED` until later plans.
 - Produces: `check_marketplace.main(argv: list[str] | None = None) -> int`; exit 0 no failing findings, 1 failing findings, 2 validator failure.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2677,12 +3001,10 @@ git commit -m "feat(validator): add schema level with vendored Agent Plugins sch
 ```python
 import json
 import subprocess
-import sys
 from pathlib import Path
 
-from helpers import read, write
-
 import check_marketplace
+from helpers import read, write
 from mpcheck.model import Severity, Status
 from mpcheck.run import run_checks
 
@@ -2716,6 +3038,7 @@ def test_unimplemented_levels_are_skipped_not_passed(market):
     statuses = run_checks(market, use_claude=False).statuses
     for group in ("remote", "discovery", "package-load", "schema.claude-validate"):
         assert statuses[group][0] == Status.SKIPPED
+    assert statuses["schema.portable"] == (Status.PASSED, "manifests=1 mcp.json=0 servers=0")
 
 
 def test_no_portable_manifest_means_portable_skipped(market):
@@ -2727,11 +3050,13 @@ def test_empty_repo_fails(tmp_path):
     report = run_checks(tmp_path, use_claude=False)
     assert report.exit_code(Severity.ERROR) == 1
     assert report.statuses["schema.parse"][0] == Status.FAILED
+    assert report.statuses["local"][0] == Status.SKIPPED
 
 
 def test_validator_crash_exits_two(market, monkeypatch, capsys):
     def boom(*args, **kwargs):
         raise RuntimeError("boom")
+
     monkeypatch.setattr(check_marketplace, "run_checks", boom)
     assert check_marketplace.main([str(market)]) == 2
     assert "validator failure" in capsys.readouterr().err
@@ -2740,7 +3065,10 @@ def test_validator_crash_exits_two(market, monkeypatch, capsys):
 def test_runs_as_a_uv_script(market):
     proc = subprocess.run(
         ["uv", "run", "--script", str(SCRIPT), str(market), "--no-claude"],
-        capture_output=True, text=True, timeout=300, check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr
     assert "No findings." in proc.stdout
@@ -2763,7 +3091,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from mpcheck.checks_local import LOCAL_CHECKS
+from mpcheck.checks_local import LOCAL_CHECKS, active_catalogs
 from mpcheck.checks_schema import Runner, check_portable, run_claude_validate
 from mpcheck.discover import discover
 from mpcheck.model import Finding, Severity, Status
@@ -2789,7 +3117,9 @@ class Report:
     statuses: dict[str, tuple[Status, str]]
 
     def exit_code(self, fail_on: Severity) -> int:
-        failing = {Severity.ERROR} if fail_on == Severity.ERROR else {Severity.ERROR, Severity.WARNING}
+        failing = (
+            {Severity.ERROR} if fail_on == Severity.ERROR else {Severity.ERROR, Severity.WARNING}
+        )
         return 1 if any(f.severity in failing for f in self.findings) else 0
 
 
@@ -2805,7 +3135,8 @@ def run_checks(
     findings += policy_findings
     for check in LOCAL_CHECKS:
         findings += check(repo, readers, policy)
-    findings += check_portable(repo)
+    portable_findings, portable_counts = check_portable(repo)
+    findings += portable_findings
     if use_claude:
         claude_findings, claude_status, claude_note = (
             run_claude_validate(repo, runner) if runner else run_claude_validate(repo)
@@ -2813,14 +3144,20 @@ def run_checks(
         findings += claude_findings
     else:
         claude_status, claude_note = Status.SKIPPED, "disabled with --no-claude"
-    statuses: dict[str, tuple[Status, str]] = {}
-    for group in GROUPS:
-        failed = any(f.group == group and f.severity == Severity.ERROR for f in findings)
-        statuses[group] = (Status.FAILED if failed else Status.PASSED, "")
-    if claude_status in (Status.SKIPPED, Status.INCONCLUSIVE):
-        statuses["schema.claude-validate"] = (claude_status, claude_note)
-    if not any("plugin.json" in p.manifests for p in repo.plugins.values()):
+
+    def failed(group: str) -> bool:
+        return any(f.group == group and f.severity == Severity.ERROR for f in findings)
+
+    statuses: dict[str, tuple[Status, str]] = {
+        group: (Status.FAILED if failed(group) else Status.PASSED, "") for group in GROUPS
+    }
+    statuses["schema.claude-validate"] = (claude_status, claude_note)
+    if portable_counts.manifests == 0:
         statuses["schema.portable"] = (Status.SKIPPED, "no portable manifests")
+    else:
+        statuses["schema.portable"] = (statuses["schema.portable"][0], portable_counts.note())
+    if not failed("local") and not active_catalogs(repo, policy):
+        statuses["local"] = (Status.SKIPPED, "no catalog is read by a declared reader")
     for group in NOT_IMPLEMENTED:
         statuses[group] = (Status.SKIPPED, "not implemented in this version")
     return Report(findings, statuses)
@@ -2889,7 +3226,9 @@ from mpcheck.run import run_checks
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", nargs="?", default=".", type=Path, help="marketplace root")
-    parser.add_argument("--policy", type=Path, help="policy file (default: marketplace-policy.json)")
+    parser.add_argument(
+        "--policy", type=Path, help="policy file (default: marketplace-policy.json)"
+    )
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--fail-on", choices=("error", "warning"), default="error")
     parser.add_argument("--no-claude", action="store_true", help="skip `claude plugin validate`")
@@ -2914,7 +3253,7 @@ chmod +x skills/plugin-marketplaces/scripts/check_marketplace.py
 - [ ] **Step 6: Run to verify pass, then every hook**
 
 Run: `uv run pytest -q && prek run --all-files`
-Expected: all tests pass; all hooks pass (fix any ruff or ty findings in the new code, then re-run).
+Expected: 89 passed (88 with 1 skipped if `claude` is absent); all hooks pass.
 
 - [ ] **Step 7: Commit**
 
@@ -3045,6 +3384,7 @@ jq '.statuses' docs/calibration/briandconnelly-plugins.json
 - [ ] **Step 3: Check the known positive**
 
 The design expected `local.parity-membership` findings for `briandconnelly-plugins` (11 Claude entries versus 9 Codex entries on 2026-09-27).
+A dry run of this plan's code on 2026-09-27 (`briandconnelly-plugins@329a25f`, `data-reasoning@5ea04d8`) produced: 4 `local.parity-membership` and 1 `local.pin-missing` (`codex-in-claude`, a `url` source with no `sha`) in the first, and 1 `local.pin-missing` (`data-reasoning`, a `github` source tracking `ref: release`) in the second, plus `policy.inferred` in both; different results at newer commits are expected, but an unexplained difference at these commits means the implementation diverged from the plan.
 
 ```bash
 jq '[.findings[] | select(.check == "local.parity-membership")] | length' docs/calibration/briandconnelly-plugins.json
