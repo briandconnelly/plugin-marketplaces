@@ -199,7 +199,7 @@ class Checker:
     def expand(self, word: str, shell: _Shell) -> str | None:
         """Expand ~ and $VARS; None when a variable is unknown."""
         if word == "~" or word.startswith("~/"):
-            word = self.layout.home + word[1:]
+            word = shell.env.get("HOME", self.layout.home) + word[1:]
         unknown = False
 
         def sub(m: re.Match[str]) -> str:
@@ -208,7 +208,7 @@ class Checker:
             if name == "PWD":
                 return shell.cwd
             if name == "HOME":
-                return self.layout.home
+                return shell.env.get("HOME", self.layout.home)
             if name in shell.env:
                 return shell.env[name]
             unknown = True

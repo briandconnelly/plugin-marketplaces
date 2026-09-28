@@ -146,3 +146,9 @@ def test_a_symlink_out_of_the_run_directory_is_flagged(tmp_path):
     flags = symlink_flags(run / "repo", run)
     assert [(f.call, f.kind) for f in flags] == [(-1, "symlink-outside")]
     assert str(flags[0]).startswith("after the run symlink-outside: ")
+
+
+def test_an_assigned_home_is_used_for_home_expansion():
+    # arms isolate tools by exporting HOME under .tool-homes/, then create it
+    assert kinds("cd /R/s2-r1/repo && export HOME=$PWD/.tool-homes/home; mkdir -p $HOME ~/x") == []
+    assert kinds("cd /R/s2-r1/repo && mkdir -p $HOME") == ["outside-write"]
