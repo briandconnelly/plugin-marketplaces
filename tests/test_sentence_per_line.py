@@ -41,3 +41,8 @@ def test_tilde_fences_are_ignored():
 
 def test_a_fence_line_with_an_info_string_does_not_close_a_fence():
     assert violations("```markdown\n```python\nx = 1. Y = 2.\n```\n") == []
+
+
+def test_multi_backtick_code_spans_are_ignored():
+    assert violations("Use ``A. B`` here.\n") == []
+    assert violations("Use ``a `x`. B`` here.\n") == []

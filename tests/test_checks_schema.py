@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 from helpers import AP_MCP_SCHEMA, AP_SCHEMA, read, write
@@ -371,3 +372,22 @@ def test_server_rules_beyond_the_schema(market, server):
 def test_conforming_servers_pass(market, server):
     write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
     assert portable(market) == []
+
+
+def test_claude_runs_with_a_throwaway_config_dir(market, monkeypatch):
+    import mpcheck.checks_schema as checks_schema
+
+    seen = []
+    report = {"success": True, "manifest": {"errors": [], "warnings": []}, "contents": []}
+
+    def fake_run(argv, **kwargs):
+        config = kwargs["env"]["CLAUDE_CONFIG_DIR"]
+        seen.append((config, Path(config).is_dir()))
+        return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(report), stderr="")
+
+    monkeypatch.setattr(checks_schema.subprocess, "run", fake_run)
+    run_claude_validate(repo_of(market), which=lambda _: FOUND)
+    assert seen and all(exists for _, exists in seen)
+    for config, _ in seen:
+        assert not Path(config).exists(), "each throwaway config dir is removed afterwards"
+        assert not config.startswith(str(Path.home() / ".claude"))

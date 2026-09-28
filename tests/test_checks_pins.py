@@ -1,3 +1,4 @@
+import pytest
 from helpers import local_ids, read, remote, write
 
 CLAUDE = ".claude-plugin/marketplace.json"
@@ -113,3 +114,19 @@ def test_pip_source_has_no_verified_pin_rule(market):
     data["plugins"][1]["source"] = {"source": "pip", "package": "beta", "version": "1.0.0"}
     write(market, CLAUDE, data)
     assert local_ids(market) == ["local.pin-unverified", "local.source-type"]
+
+
+@pytest.mark.parametrize(
+    "version", ["01.2.3", "1.2.3-alpha..1", "1.2.3+build.", "1.2.3-", "1.02.3"]
+)
+def test_npm_version_must_be_strict_semver(market, version):
+    set_both(market, 1, source={"source": "npm", "package": "@x/beta", "version": version})
+    assert local_ids(market) == ["local.pin-missing", "local.pin-missing"]
+
+
+@pytest.mark.parametrize(
+    "version", ["0.0.0", "1.2.3-alpha.1", "1.2.3-0.a.b", "1.2.3+build.5", "10.20.30-rc.1+sha.abc"]
+)
+def test_strict_semver_accepts_valid_versions(market, version):
+    set_both(market, 1, source={"source": "npm", "package": "@x/beta", "version": version})
+    assert local_ids(market) == []

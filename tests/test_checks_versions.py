@@ -107,3 +107,27 @@ def test_github_and_url_forms_of_one_repository_are_the_same_source(market):
     github = {"source": "github", "repo": "Example/Beta", "ref": "v1.0.0", "sha": "a" * 40}
     set_entry(market, CLAUDE, 1, source=github)
     assert local_ids(market) == []
+
+
+def test_version_declared_in_one_catalog_only_is_a_difference(market):
+    # A local plugin with no manifest version: one catalog declares one, the other none.
+    for rel in ("plugins/alpha/.claude-plugin/plugin.json", "plugins/alpha/plugin.json"):
+        data = read(market, rel)
+        del data["version"]
+        write(market, rel, data)
+    set_entry(market, CLAUDE, 0, version="1.2.0")
+    assert local_ids(market) == [
+        "local.parity-version",
+        "local.version-field-missing",
+        "local.version-field-missing",
+        "local.version-missing",
+    ]
+
+
+def test_remote_entry_without_version_is_unknown_not_different(market):
+    # The remote plugin's own manifest supplies its version once fetched, so an omitted
+    # entry version is unknown offline; the remote level checks it against the manifest.
+    data = read(market, CODEX)
+    del data["plugins"][1]["version"]
+    write(market, CODEX, data)
+    assert local_ids(market) == []

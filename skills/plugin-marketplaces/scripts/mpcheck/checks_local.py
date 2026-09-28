@@ -426,6 +426,12 @@ def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list
                 values = set(_version_values(repo, by_rel[rel], index, entry).values())
                 if len(values) == 1:
                     versions |= values
+                elif not values and repo.plugin_for(entry, by_rel[rel]) is not None:
+                    # A resolvable local plugin with no version here differs from a catalog
+                    # that declares one. A remote entry without `version` is unknown offline
+                    # (its own manifest supplies it), and an unresolvable local source is
+                    # already a path finding.
+                    versions.add("(none)")
                 pin = pin_of(entry["source"], by_rel[rel].plugin_root)
                 if pin is not None:
                     pins.add(pin)
@@ -467,7 +473,12 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
-EXACT_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
+# The semver.org 2.0.0 grammar: no leading zeros, non-empty dot-separated identifiers.
+_NUM = r"(?:0|[1-9]\d*)"
+_PRE = r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
+EXACT_SEMVER_RE = re.compile(
+    rf"^{_NUM}\.{_NUM}\.{_NUM}(?:-{_PRE}(?:\.{_PRE})*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 
 
 def _pin_finding(check: str, catalog: Catalog, index: int, message: str) -> Finding:

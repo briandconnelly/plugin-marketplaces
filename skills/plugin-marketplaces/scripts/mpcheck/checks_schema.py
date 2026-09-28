@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import re
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +40,13 @@ class PortableCounts:
 
 
 def _default_runner(argv: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(argv, capture_output=True, text=True, timeout=120, check=False)
+    # `claude plugin validate` writes config state (.claude.json and backups) into its
+    # config directory, so every run gets a throwaway one, never the user's (AGENTS.md).
+    with tempfile.TemporaryDirectory(prefix="mpcheck-claude-config-") as config:
+        env = {**os.environ, "CLAUDE_CONFIG_DIR": config}
+        return subprocess.run(
+            argv, capture_output=True, text=True, timeout=120, check=False, env=env
+        )
 
 
 def _schema(version: str, name: str) -> dict[str, object]:

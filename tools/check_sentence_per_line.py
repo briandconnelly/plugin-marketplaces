@@ -6,7 +6,8 @@ import re
 import sys
 from pathlib import Path
 
-CODE_SPAN = re.compile(r"`[^`]*`")
+# An inline code span opens and closes with backtick runs of the same length.
+CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 LEAD = re.compile(r"^\s*(?:>\s*)?(?:#+\s*)?(?:\d+\.|[-*+])?\s*")
 ABBREVIATIONS = ("e.g.", "i.e.", "etc.", "vs.", "cf.")
 BREAK = re.compile(r"[A-Za-z0-9)\]*_\"'`][.!?] +[A-Z]")
