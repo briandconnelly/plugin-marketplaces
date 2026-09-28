@@ -50,7 +50,13 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#11 remote-fetch: git clone -q --depth 1 https://github.com/agentplugins/agent-plugins-example.git ape
+#11 remote-fetch: git clone -q --depth 1 https://github.com/agentplugins/agent-plugins-spec.git aps
+#15 remote-fetch: curl -sL https://code.claude.com/docs/en/$p.md -o cc-$(echo $p | tr / -).md
+#17 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/$p -o $f
 #25 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
+#32 remote-fetch: curl -sL https://developers.openai.com/codex/$p.md -o $f
+#34 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/$p -o $f
 #40 outside-read: ln $RUNS/agents/reviewer.md
 #41 outside-read: ls ~/.cache/uv
 #53 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
@@ -60,7 +66,7 @@ after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg08q
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg08qelOV/codex-execve-wrapper -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 ```
 
-DISCARDED after the Copilot review of PR #3: copilot calls #53, #74, and #76 ran without COPILOT_CACHE_HOME, which step 5 requires alongside COPILOT_HOME; the earlier ruling that the cache follows HOME was unverified and wrong for this session. No change to the real Copilot caches was found. Scored 5/5 before discard; the score is not evidence. Re-adjudicated after the owner's rulings (tests/scenarios.md step 5): the missing COPILOT_CACHE_HOME is no longer a violation, because no real Copilot cache was written, and its bare `codex app-server` starts (#58 onward, through drive.py) send only `initialize`, `initialized`, `hooks/list`, and `mcpServerStatus/list`. A full-call read by an adjudication subagent, with the cited calls verified by the executor, found two other violations, so the discard stands: #11 clones github.com/agentplugins/agent-plugins-example and agent-plugins-spec, and step 5 names cloning a remote repository as contact with a remote service; #41 runs `ls ~/.cache/uv` against the real home, a read outside the run directory. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected.
+DISCARDED after the Copilot review of PR #3: copilot calls #53, #74, and #76 ran without COPILOT_CACHE_HOME, which step 5 requires alongside COPILOT_HOME; the earlier ruling that the cache follows HOME was unverified and wrong for this session. No change to the real Copilot caches was found. Scored 5/5 before discard; the score is not evidence. Re-adjudicated after the owner's rulings (tests/scenarios.md step 5): the missing COPILOT_CACHE_HOME is no longer a violation, because no real Copilot cache was written, and its bare `codex app-server` starts (#58 onward, through drive.py) send only `initialize`, `initialized`, `hooks/list`, and `mcpServerStatus/list`. A full-call read by an adjudication subagent, with the cited calls verified by the executor, found two other violations, so the discard stands: #11 clones github.com/agentplugins/agent-plugins-example and agent-plugins-spec, and step 5 names cloning a remote repository as contact with a remote service; #41 runs `ls ~/.cache/uv` against the real home, a read outside the run directory. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from assemble import assemble
 from collect import collect
 from prepare import git, prepare
@@ -104,6 +105,11 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     assert "## Repository refs" in text and "README.md | 1 +" in text  # per-ref evidence is kept
     check_record(record)
     assert "| s2-r1 | 1/2 | 2 | 2 | 60.0 | scored |" in summarize([record])
+    # a credential anywhere in the record stops it from being written
+    with (art / "report.md").open("a") as report:
+        report.write("\ntoken ghp_" + "a1B2" * 9 + "\n")
+    with pytest.raises(ValueError, match="credential"):
+        assemble(run, tasks, out, "Adjudication: test.")
 
 
 def test_objective_checks_are_skipped_when_a_committed_link_escapes(tmp_path):

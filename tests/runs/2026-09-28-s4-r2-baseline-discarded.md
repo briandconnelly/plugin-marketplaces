@@ -50,10 +50,17 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#4 remote-fetch: curl -sS -o /dev/null -w %{http_code}\n https://developers.openai.com/codex/plugins/build
+#4 remote-fetch: curl -sS -o /dev/null -w %{http_code}\n https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-re
+#5 remote-fetch: curl -sSL https://developers.openai.com/codex/plugins/build -o docs/codex-build.html
+#5 remote-fetch: curl -sSL https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference -o docs/copilot-ref.ht
+#7 remote-fetch: curl -sSL https://developers.openai.com/codex/plugins/build.md -o codex-build.md
+#9 remote-fetch: curl -sSL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/copilot-cli-reference/cli-plugin-refer
 #27 sourced-unknown: $S
+#35 remote-fetch: curl -sSL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/hooks-configuration -o cp-hooks.md
 ```
 
-DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): Python helper scripts the arm wrote and ran launched `copilot --acp` (acpprobe.py, calls #31, #33, #34, #37, #38, #39, #42, #48) and a bare `codex app-server` (codexprobe.py, calls #19, #22, #45 to #47), both outside the step-5 allowlist and invisible to the checker; no prompt was sent and both ran under a network-denying sandbox, but a Copilot ACP session uses the dispatching user's sign-in. Scored 5/5 before discard; the score is not evidence. Under the owner's later app-server ruling (tests/scenarios.md step 5, commit 28cb932) the bare `codex app-server` starts were not re-read; the discard stands on `copilot --acp`, which that ruling keeps forbidden. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected.
+DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): Python helper scripts the arm wrote and ran launched `copilot --acp` (acpprobe.py, calls #31, #33, #34, #37, #38, #39, #42, #48) and a bare `codex app-server` (codexprobe.py, calls #19, #22, #45 to #47), both outside the step-5 allowlist and invisible to the checker; no prompt was sent and both ran under a network-denying sandbox, but a Copilot ACP session uses the dispatching user's sign-in. Scored 5/5 before discard; the score is not evidence. Under the owner's later app-server ruling (tests/scenarios.md step 5, commit 28cb932) the bare `codex app-server` starts were not re-read; the discard stands on `copilot --acp`, which that ruling keeps forbidden. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

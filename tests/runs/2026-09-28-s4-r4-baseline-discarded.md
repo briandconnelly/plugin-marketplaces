@@ -53,13 +53,21 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #4 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #5 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #12 outside-read: tr /
+#12 remote-fetch: curl -sL https://developers.openai.com/$u -o $f
+#17 remote-fetch: curl -sL https://developers.openai.com/$u -o build2.html
+#18 remote-fetch: curl -sL https://developers.openai.com/plugins/guides/submit-claude-plugin -o sc.html
+#19 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/$p -o $f
+#28 remote-fetch: curl -sL https://code.claude.com/docs/en/plugins-reference.md -o cc_ref.md
+#28 remote-fetch: curl -sL https://code.claude.com/docs/en/mcp.md -o cc_mcp.md
+#30 remote-fetch: curl -sL https://raw.githubusercontent.com/agentplugins/agent-plugins-spec/main/spec/1.0.0.md -o spec.md
+#31 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/$p -o $f
 #37 outside-read: ls /claude
 #37 outside-read: ls /home
 #45 unparsed: No closing quotation: "#!/bin/sh\n# Claude Code fills REVIEW_API_KEY from the plugin's userConfig prompt.\n# Codex and Copilot CLI have no userCo"
 #45 outside-read: cd /
 ```
 
-DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): in #36 a failed `cd` into .tool-homes/work skipped the `&&`-chained `export`, so `claude plugin marketplace add`, `claude plugin install`, and `claude plugin details` ran with the real HOME and no CLAUDE_CONFIG_DIR (the add failed with "Path does not exist: /snap0" and the install failed; ~/.claude/plugins showed no change in the batch home check); #45 runs `cd /` twice. Its bare `codex app-server` starts (#51 to #56, from Python) set CODEX_HOME under .tool-homes/ and send only `initialize`, `initialized`, and `mcpServerStatus/list`. Not scored.
+DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): in #36 a failed `cd` into .tool-homes/work skipped the `&&`-chained `export`, so `claude plugin marketplace add`, `claude plugin install`, and `claude plugin details` ran with the real HOME and no CLAUDE_CONFIG_DIR (the add failed with "Path does not exist: /snap0" and the install failed; ~/.claude/plugins showed no change in the batch home check); #45 runs `cd /` twice. Its bare `codex app-server` starts (#51 to #56, from Python) set CODEX_HOME under .tool-homes/ and send only `initialize`, `initialized`, and `mcpServerStatus/list`. Not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

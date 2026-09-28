@@ -82,7 +82,7 @@ Fixtures, prompts, criteria, the preamble, and the number of repetitions all cha
 
 ## Saturated scenarios
 
-s1, s3, and s7 passed every criterion in all three runs; plan 2c compares them on cost only (tests/scenarios.md, Outcomes).
+s1, s3, and s7 passed every criterion in all three runs, so plan 2c compares them as `tests/scenarios.md`, Outcomes, sets out for a saturated baseline.
 Their median costs are 26 calls and 230 s (s1), 25 calls and 194 s (s3), and 7 calls and 52 s (s7).
 
 ## s4: isolation is the baseline outcome
@@ -93,7 +93,7 @@ Every discarded arm was trying to see whether review-kit's MCP server, agent, or
 - two fetched Codex or agent-plugins source from GitHub (s4-r3 clones, s4-r8 raw source files), which step 5 counts as contact, not documentation;
 - s4-r4 ran three `claude plugin` commands with the real configuration after a failed `cd` skipped its `export` (the add and install failed; `~/.claude/plugins` did not change);
 - s4-r6 ran `codex app-server generate-ts`, local but outside the literal allowlist.
-Plan 2c's treatment arms for s4 are judged on the same two outcomes: how many of them stay isolated, and the score of those that do.
+Plan 2c's treatment arms for s4 are judged on how many of them stay isolated; the score of those that do is reported as descriptive only, because a single isolated baseline run gives no baseline distribution to compare against.
 
 ## Failures and costs the skill can address
 
@@ -150,5 +150,5 @@ Each needs its own provenance entry before it enters a reference; archived tool 
 - Put the ten facts above, with provenance, into `codex.md`, `copilot-cli.md`, `claude-code.md`, and `feature-matrix.md`; cost in s1, s3, and s4 is the measure of whether citing them replaces probing.
 - Teach the safe probing method in `validation.md` and R15, including `XDG_CONFIG_HOME`, `GIT_CONFIG_GLOBAL` with `insteadOf`, and a network sandbox.
 - Separate defects from opinions in the audit workflow (s6 criterion 8).
-- Treatment arms must use preamble v2 plus one skill line, the same fixture trees, and the same model; s1, s3, and s7 are compared on cost only, and s4 on its isolation rate and the score of its isolated runs.
+- Treatment arms must use preamble v2 plus one skill line, the same fixture trees, and the same model; s1, s3, and s7 are compared as Outcomes in `tests/scenarios.md` sets out for a saturated baseline, and s4 on its isolation rate, with any s4 score difference reported as descriptive only because one isolated baseline run is no baseline for a score.
 - Teach how to check that a plugin's MCP server, agent, and hook load without opening a model session, since that question drove every s4 discard.

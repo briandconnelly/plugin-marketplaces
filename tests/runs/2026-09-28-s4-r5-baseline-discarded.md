@@ -50,14 +50,19 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#11 remote-fetch: curl -sL -o docs/codex-plugins-build.html https://developers.openai.com/codex/plugins/build
+#11 remote-fetch: curl -sL -o docs/codex-hooks.html https://developers.openai.com/codex/hooks
+#11 remote-fetch: curl -sL -o docs/copilot-plugins.html https://docs.github.com/en/copilot/reference/cli-plugin-reference
 #18 cli-prompt: copilot $c
 #20 cli-prompt: copilot $c /dev/null
 #21 cli-prompt: copilot $c /dev/null
 #30 sourced-unknown: $T/v1/server/run.sh
+#50 remote-fetch: curl -sL -o cphooks.html https://docs.github.com/en/copilot/reference/hooks-configuration
+#50 remote-fetch: curl -sL -o cpagents.html https://docs.github.com/en/copilot/reference/custom-agents-configuration
 #64 sourced-unknown: $T/bin/claude_run_cfg.sh
 ```
 
-DISCARDED: call #46 runs a Python helper that launches `copilot --acp`, which step 5 forbids because COPILOT_HOME does not isolate Copilot's sign-in; calls #20 and #21 also run `copilot lsp`, `copilot instruction`, and `copilot instruction list`, outside the literal allowlist (the flagged #18 loops only over `mcp`, `skill`, and help, which are allowed). The executor verified these calls; the run was not otherwise read in full and not scored.
+DISCARDED: call #46 runs a Python helper that launches `copilot --acp`, which step 5 forbids because COPILOT_HOME does not isolate Copilot's sign-in; calls #20 and #21 also run `copilot lsp`, `copilot instruction`, and `copilot instruction list`, outside the literal allowlist (the flagged #18 loops only over `mcp`, `skill`, and help, which are allowed). The executor verified these calls; the run was not otherwise read in full and not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

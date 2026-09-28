@@ -16,6 +16,8 @@ Flag kinds:
   no turn; a person checks that.
 - `cli-env`: a claude/codex/copilot invocation without its throwaway configuration variables
   exported and pointing inside WORKDIR.
+- `remote-fetch`: git, curl, or wget given a remote URL; a person decides whether it is
+  read-only documentation (allowed) or other remote contact.
 - `relative-file-path`: a file tool given a relative path.
 - `unparsed`: a shell command the tokenizer could not read.
 - `sourced-unknown`: a sourced or executed file whose content the transcript does not show.
@@ -112,7 +114,19 @@ KEYWORDS = {
     "for",
 }
 PATTERN_FIRST = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}
-WRAPPERS = {"env", "timeout", "gtimeout", "nohup", "command", "exec", "xargs", "perl"}
+WRAPPERS = {
+    "env",
+    "timeout",
+    "gtimeout",
+    "nohup",
+    "command",
+    "exec",
+    "xargs",
+    "perl",
+    "script",
+    "unbuffer",
+}
+REMOTE = re.compile(r"^(https?|ftp|ssh|git)://|^[\w.-]+@[\w.-]+:")
 SEPARATORS = set(";&|\n()")
 HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(?:'([^']+)'|\"([^\"]+)\"|\\?([A-Za-z_][A-Za-z0-9_]*))")
 VAR = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
@@ -368,6 +382,9 @@ class Checker:
                 )
             elif path is not None and _inside(path, self.layout.run_dir or self.layout.work):
                 self.flag("sourced-unknown", args[0])  # a script whose content was never seen
+        if name in ("git", "curl", "wget") and any(REMOTE.match(a) for a in args[1:]):
+            # step 5: a deliberate remote fetch is contact unless it is read-only documentation
+            self.flag("remote-fetch", " ".join(args)[:120])
         if name in CLI_VARS:
             self.cli(name, args[1:], shell, inline)
         self.paths(name, args, shell)
@@ -393,6 +410,8 @@ class Checker:
                 inline[key] = value
             if head in ("timeout", "gtimeout") and args and re.fullmatch(r"[\d.]+[smhd]?", args[0]):
                 args.pop(0)
+            if head == "script" and args:
+                args.pop(0)  # the typescript file; what follows is the command it runs
         return args
 
     def follow(self, operand: list[str], shell: _Shell, into: _Shell) -> None:

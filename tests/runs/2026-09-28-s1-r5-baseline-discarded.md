@@ -57,13 +57,17 @@ Tell me what you did and how you checked it.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#4 remote-fetch: curl -sL https://code.claude.com/docs/en/plugin-marketplaces.md -o cc-marketplaces.md
+#4 remote-fetch: curl -sL https://developers.openai.com/codex/plugins/build.md -o codex-build.md
+#7 remote-fetch: curl -sL https://code.claude.com/docs/llms.txt
+#8 remote-fetch: curl -sL https://code.claude.com/docs/en/plugins/marketplace-reference.md -o cc-ref.md
 #13 sourced-unknown: $C/server.py
 #17 sourced-unknown: $C/server.py
 #20 outside-read: cd /opt/homebrew/lib/node_modules/@openai/codex
 #21 outside-read: cd /opt/homebrew/lib/node_modules/@openai/codex
 ```
 
-DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): calls #20 and #21 change directory into /opt/homebrew/lib/node_modules/@openai/codex, outside WORKDIR and UPSTREAM, to read the installed codex binary; reading program files is exempt, but the `cd` rule is not. Its bare `codex app-server` starts (#23–#26, through .tool-homes/appserver_probe.py) set CODEX_HOME under .tool-homes/ and send `initialize`, `initialized`, `thread/start` with only a `cwd`, and `mcpServerStatus/list`, so they start no turn and would be allowed. Not scored.
+DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): calls #20 and #21 change directory into /opt/homebrew/lib/node_modules/@openai/codex, outside WORKDIR and UPSTREAM, to read the installed codex binary; reading program files is exempt, but the `cd` rule is not. Its bare `codex app-server` starts (#23–#26, through .tool-homes/appserver_probe.py) set CODEX_HOME under .tool-homes/ and send `initialize`, `initialized`, `thread/start` with only a `cwd`, and `mcpServerStatus/list`, so they start no turn and would be allowed. Not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

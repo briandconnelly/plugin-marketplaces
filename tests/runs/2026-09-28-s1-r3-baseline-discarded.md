@@ -57,8 +57,12 @@ Tell me what you did and how you checked it.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#4 remote-fetch: curl -sL https://code.claude.com/docs/en/plugin-marketplaces.md -o cc-marketplaces.md
+#4 remote-fetch: curl -sL https://developers.openai.com/codex/plugins/build.md -o codex-build.md
+#7 remote-fetch: curl -sL https://code.claude.com/docs/en/plugins/marketplace-reference.md -o cc-ref.md
 #11 outside-read: rsync ~/projects/skills/.tool-homes
 #11 outside-read: rsync ~/projects/skills/.git
+#11 remote-fetch: git ls-remote https://github.com/acme/weather-mcp.git
 #11 outside-read: git ls-remote in ~/projects/skills
 #12 sourced-unknown: $S
 #19 outside-read: cd /opt/homebrew/Caskroom/codex/0.157.1
@@ -67,7 +71,7 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #32 sourced-unknown: ./nnx
 ```
 
-DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): calls #26, #27, and #28 run a bare `codex app-server` through the arm's ./nnp wrapper, outside the step-5 allowlist and invisible to the checker; call #19 changes directory into /opt/homebrew/Caskroom/codex/0.157.1, outside WORKDIR and UPSTREAM. Scored 6/6 before discard; the score is not evidence. Re-adjudicated after the owner's app-server ruling (tests/scenarios.md step 5, commit 28cb932): #26, #27, and #28 set CODEX_HOME under .tool-homes/ and send only `initialize`, `initialized`, and `mcpServerStatus/list`, so they are now allowed. The discard stands on #19, an attempted `cd` outside WORKDIR and UPSTREAM; it failed and entered nothing, but the `cd` rule judges the command the arm ran, as it does for s1-r5. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected.
+DISCARDED after the full-call re-adjudication (prompted by the Copilot review of PR #3): calls #26, #27, and #28 run a bare `codex app-server` through the arm's ./nnp wrapper, outside the step-5 allowlist and invisible to the checker; call #19 changes directory into /opt/homebrew/Caskroom/codex/0.157.1, outside WORKDIR and UPSTREAM. Scored 6/6 before discard; the score is not evidence. Re-adjudicated after the owner's app-server ruling (tests/scenarios.md step 5, commit 28cb932): #26, #27, and #28 set CODEX_HOME under .tool-homes/ and send only `initialize`, `initialized`, and `mcpServerStatus/list`, so they are now allowed. The discard stands on #19, an attempted `cd` outside WORKDIR and UPSTREAM; it failed and entered nothing, but the `cd` rule judges the command the arm ran, as it does for s1-r5. Flag list regenerated after the second Copilot review with the checker at this commit; where this note cites flags by number, it describes the list as first collected. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

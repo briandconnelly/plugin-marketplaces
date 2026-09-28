@@ -58,12 +58,15 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #21 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #23 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #24 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
+#26 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/cli-plugin-reference -o cpref.md
+#27 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/hooks-configuration -o cphooks.md
 #34 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
+#35 remote-fetch: curl -sL https://developers.openai.com/codex/$u.md -o cx-$(echo $u|tr / -).md
 #37 sourced-unknown: reinstall.sh
 #41 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 ```
 
-DISCARDED: calls #24 and #33 run Python helpers that launch `copilot --acp` (a Copilot ACP session, forbidden by step 5 because COPILOT_HOME does not isolate the sign-in); the session found the dispatching user's stored Copilot credential and reached GitHub's Copilot service, whose reply at #33 is a 503 "checking server-to-server token: unavailable". The executor verified these calls against the recorded output; the arm itself reported the breach. The run was not otherwise read in full and not scored.
+DISCARDED: calls #24 and #33 run Python helpers that launch `copilot --acp` (a Copilot ACP session, forbidden by step 5 because COPILOT_HOME does not isolate the sign-in); the session found the dispatching user's stored Copilot credential and reached GitHub's Copilot service, whose reply at #33 is a 503 "checking server-to-server token: unavailable". The executor verified these calls against the recorded output; the arm itself reported the breach. The run was not otherwise read in full and not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

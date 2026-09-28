@@ -22,6 +22,7 @@ EXPECTED = {
         "outside-read": [7, 10, 11, 15, 17, 21, 22, 23, 24],
         "outside-write": [7, 15, 17, 21, 22, 23],
         "cli-env": [15, 17, 22, 23, 24],
+        "remote-fetch": [7],  # curl of two documentation pages: flagged, allowed on reading
     },
     "s2-baseline": {},
     # listed the shared parent (#0) and copied itself to ../s3-copy-for-test (#7): plan 2a's
@@ -230,3 +231,18 @@ def test_unset_variables_no_longer_isolate_a_cli():
     assert kinds(W + env + "codex plugin list") == []
     assert kinds(W + env + "env -u CODEX_HOME codex plugin list") == ["cli-env"]
     assert kinds(W + env + "unset CODEX_HOME; codex plugin list") == ["cli-env"]
+
+
+def test_remote_fetches_are_flagged_for_adjudication():
+    assert kinds(W + "git clone https://example.org/code.git clone") == ["remote-fetch"]
+    assert kinds(W + "git ls-remote git@github.com:acme/x.git") == ["remote-fetch"]
+    assert kinds(W + "curl -sL https://example.org/private -o .tool-homes/out") == ["remote-fetch"]
+    assert kinds(W + "wget -q https://example.org/x") == ["remote-fetch"]
+    assert kinds(W + "curl -s file:///etc/hosts") != ["remote-fetch"]
+
+
+def test_terminal_wrappers_are_unwrapped():
+    env = "export COPILOT_HOME=$PWD/c COPILOT_CACHE_HOME=$PWD/d; "
+    assert kinds(W + env + "script -q /dev/null copilot --acp") == ["cli-prompt"]
+    assert kinds(W + env + "script -q $PWD/t.log copilot") == ["cli-prompt"]
+    assert kinds(W + env + "unbuffer copilot plugin list") == []

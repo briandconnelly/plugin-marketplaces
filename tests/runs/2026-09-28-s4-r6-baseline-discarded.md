@@ -55,6 +55,9 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #4 cli-prompt: codex \$@ /dev/null
 #4 cli-prompt: copilot \$@ /dev/null
 #4 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
+#6 remote-fetch: curl -sL -o copilot-plugin-ref.html https://docs.github.com/en/copilot/reference/cli-plugin-reference
+#6 remote-fetch: curl -sL -o copilot-about.html https://docs.github.com/copilot/concepts/agents/copilot-cli/about-cli-plugins
+#6 remote-fetch: curl -sL -o codex-plugins-build.html https://developers.openai.com/codex/plugins/build
 #11 cli-prompt: copilot \$@ /dev/null
 #11 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #12 cli-prompt: copilot \$@ /dev/null
@@ -65,6 +68,9 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #14 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
 #15 cli-prompt: copilot \$@ /dev/null
 #15 cli-env: copilot without COPILOT_CACHE_HOME inside WORKDIR
+#17 remote-fetch: curl -sL -o copilot-create.html https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creatin
+#17 remote-fetch: curl -sL -o copilot-hooks-ref.html https://docs.github.com/en/copilot/reference/hooks-configuration
+#17 remote-fetch: curl -sL -o copilot-agents-ref.html https://docs.github.com/en/copilot/reference/custom-agents-configuration
 #20 cli-prompt: codex \$@ /dev/null
 #21 cli-prompt: codex \$@ /dev/null
 #22 cli-prompt: codex \$@ /dev/null
@@ -76,7 +82,7 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #48 cli-prompt: claude \$@ /dev/null
 ```
 
-DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited call): #29 runs `codex app-server generate-ts` through the arm's ./cx wrapper, a subcommand outside the literal step-5 allowlist (only `app-server generate-json-schema` is listed), although it generates TypeScript types locally. Its other calls broke no rule: the missing COPILOT_CACHE_HOME wrote no real Copilot cache, and its bare `codex app-server` starts (#31 onward) send only `initialize`, `initialized`, `skills/list`, `hooks/list`, `plugin/read`, and `mcpServerStatus/list`. Not scored.
+DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited call): #29 runs `codex app-server generate-ts` through the arm's ./cx wrapper, a subcommand outside the literal step-5 allowlist (only `app-server generate-json-schema` is listed), although it generates TypeScript types locally. Its other calls broke no rule: the missing COPILOT_CACHE_HOME wrote no real Copilot cache, and its bare `codex app-server` starts (#31 onward) send only `initialize`, `initialized`, `skills/list`, `hooks/list`, `plugin/read`, and `mcpServerStatus/list`. Not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

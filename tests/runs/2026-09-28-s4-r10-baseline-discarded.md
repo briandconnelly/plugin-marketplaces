@@ -50,18 +50,22 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#13 remote-fetch: curl -sSL -m 30 -o gh-ref.html https://docs.github.com/en/copilot/reference/cli-plugin-reference
+#13 remote-fetch: curl -sSL -m 30 -o codex-build.html https://developers.openai.com/codex/plugins/build
 #33 outside-read: cd /opt/homebrew/lib/node_modules/@github/copilot
-#62 outside-read: script /dev/zero
-#63 outside-read: script /dev/zero
-#64 outside-read: script /dev/zero
+#39 remote-fetch: curl -sSL -m 30 -o h.html -w %{http_code} $u\n https://docs.github.com/en/copilot/$u
+#40 remote-fetch: curl -sSL -m 30 -o h.html https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference
+#62 outside-read: sandbox-exec /dev/zero
+#63 outside-read: sandbox-exec /dev/zero
+#64 outside-read: sandbox-exec /dev/zero
 #75 unparsed: No closing quotation: "#!/bin/sh\n# Copy the working tree to $T/cand. server/run.sh keeps its real logic but logs instead of exec'ing the server"
-#76 outside-read: script /dev/zero
+#76 outside-read: sandbox-exec /dev/zero
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg0XzSsT6/applypatch -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg0XzSsT6/apply_patch -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg0XzSsT6/codex-execve-wrapper -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 ```
 
-DISCARDED: #34 and #35 launch `copilot --acp` and #62 starts an interactive Copilot session under `script`, all inside a no-network sandbox-exec profile; step 5 forbids Copilot sessions in any form because COPILOT_HOME does not isolate the sign-in. #33 also changes directory into /opt/homebrew/lib/node_modules/@github/copilot. The executor verified these calls; the run was not otherwise read in full and not scored.
+DISCARDED: #34 and #35 launch `copilot --acp` and #62 starts an interactive Copilot session under `script`, all inside a no-network sandbox-exec profile; step 5 forbids Copilot sessions in any form because COPILOT_HOME does not isolate the sign-in. #33 also changes directory into /opt/homebrew/lib/node_modules/@github/copilot. The executor verified these calls; the run was not otherwise read in full and not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 

@@ -24,6 +24,19 @@ DISCARDED = (
 )
 
 
+# High-confidence credential shapes; the arms' placeholders (secret123, sk-from-shell) do not match.
+CREDENTIAL = re.compile(
+    r"(gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9_-]{24,}"
+    r"|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|Bearer [A-Za-z0-9._~+/-]{20,})"
+)
+
+
+def secret_lines(doc: str) -> list[str]:
+    """Lines of `doc` holding something shaped like a real credential."""
+    return [line for line in doc.splitlines() if CREDENTIAL.search(line)]
+
+
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -115,6 +128,9 @@ Every branch and tag in the final repository, each with its changes against the 
 ```
 """
     doc = redact(doc, run)
+    if found := secret_lines(doc):
+        # fail closed: a record is committed, so a credential must never reach one
+        raise ValueError(f"credential-like text in the record for {run.name}: {found[0][:80]}")
     suffix = "-discarded" if discarded else ""
     target = (
         out

@@ -65,7 +65,8 @@ The two lines about temporary files and `XDG_CONFIG_HOME` were added on 2026-09-
 ## Outcomes
 
 Each run records two outcomes: the criteria score, and its cost, as tool calls and wall time taken from the arm's transcript.
-Cost is recorded, not scored; a scenario whose baseline passes every criterion in every repetition is compared on cost alone.
+Cost is recorded, not scored.
+In a scenario whose baseline passes every criterion in every repetition, a treatment run that also passes every criterion is compared on cost, and a treatment run that fails any criterion counts as a regression whatever its cost.
 
 ## Scenario 1: New marketplace for two tools
 

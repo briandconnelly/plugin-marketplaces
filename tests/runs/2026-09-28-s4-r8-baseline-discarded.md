@@ -50,13 +50,22 @@ Tell me what will and won't work in each tool.
 Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 5):
 
 ```text
+#6 remote-fetch: curl -sL https://developers.openai.com/codex/plugins/build -o codex-build.html
+#6 remote-fetch: curl -sL https://docs.github.com/en/copilot/reference/cli-plugin-reference -o gh-ref.html
+#8 remote-fetch: curl -sL https://developers.openai.com/codex/plugins/build.md -o codex-build.md
+#10 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/cli-plugin-reference -o gh-ref.md
+#19 remote-fetch: curl -sL https://api.github.com/repos/openai/codex/git/trees/rust-v0.157.1?recursive=1 -o codex-tree.json
+#20 remote-fetch: curl -sL https://raw.githubusercontent.com/openai/codex/rust-v0.157.1/$f -o csrc/$
+#24 remote-fetch: curl -sL https://raw.githubusercontent.com/openai/codex/rust-v0.157.1/$f -o $
 #24 outside-read: tr /
+#28 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/copilot/$p -o gh-$(basename $p).md
+#31 remote-fetch: curl -sL https://docs.github.com/api/article/body?pathname=/en/copilot/reference/hooks-reference -o gh-hooks.md
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg07Iwlb2/applypatch -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg07Iwlb2/apply_patch -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 after the run symlink-outside: $RUN/repo/.tool-homes/codex/tmp/arg0/codex-arg07Iwlb2/codex-execve-wrapper -> /opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex
 ```
 
-DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): #19 queries api.github.com for the openai/codex repository tree at rust-v0.157.1, and #20 and #24 download Codex source files from raw.githubusercontent.com. Fetching a repository's source is ruled contact with a remote service, not read-only documentation, as cloning the agent-plugins repositories was for s4-r3; no valid run fetched repository source. Every other call broke no rule: every Copilot call is an allowlisted subcommand with COPILOT_HOME and COPILOT_CACHE_HOME under .tool-homes/ (or a version or help check), no `codex app-server` or Copilot session was started, and the leftover symlinks under .tool-homes/codex/tmp/arg0/ were created by Codex itself and point at its installed binary. Not scored.
+DISCARDED after a full-call adjudication (an adjudication subagent read every call in full; the executor verified the cited calls): #19 queries api.github.com for the openai/codex repository tree at rust-v0.157.1, and #20 and #24 download Codex source files from raw.githubusercontent.com. Fetching a repository's source is ruled contact with a remote service, not read-only documentation, as cloning the agent-plugins repositories was for s4-r3; no valid run fetched repository source. Every other call broke no rule: every Copilot call is an allowlisted subcommand with COPILOT_HOME and COPILOT_CACHE_HOME under .tool-homes/ (or a version or help check), no `codex app-server` or Copilot session was started, and the leftover symlinks under .tool-homes/codex/tmp/arg0/ were created by Codex itself and point at its installed binary. Not scored. The `remote-fetch` flags were added to the checker after the Codex review of PR #3; the discard rests on them only where this note names them.
 
 ## Score
 
