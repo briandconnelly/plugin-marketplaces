@@ -21,7 +21,7 @@ dev = ["pytest>=8.3", "pyyaml>=6.0", "ruff", "ty"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["skills/plugin-marketplaces/scripts", "tests", "tools"]
+pythonpath = ["skills/plugin-marketplaces/scripts", "tests", "tests/eval", "tools"]
 markers = ["live: runs the real claude, codex, and copilot CLIs (slow)"]
 addopts = "-m 'not live'"
 
