@@ -4,7 +4,7 @@ Usage: uv run python tests/eval/assemble.py RUNS/sN-rK TASKS OUT_DIR --note "TEX
 
 The scorer's reply comes from its transcript (the one whose prompt names this run's
 score-prompt.txt); a discarded run is recorded unscored. Paths are rewritten to `$RUN`
-(this run's directory), `$RUNS` (its parent), and `~`.
+(this run's directory), `$RUNS` (its parent), `$SCRATCH` (the parent of RUNS), and `~`.
 """
 
 from __future__ import annotations
@@ -85,7 +85,12 @@ The arm's tool calls, one JSON object per line, extracted from its transcript.
 {(art / "diff.patch").read_text(encoding="utf-8").rstrip()}
 ```
 """
-    for path, name in ((run, "$RUN"), (run.parent, "$RUNS"), (Path.home(), "~")):
+    for path, name in (
+        (run, "$RUN"),
+        (run.parent, "$RUNS"),
+        (run.parent.parent, "$SCRATCH"),
+        (Path.home(), "~"),
+    ):
         doc = doc.replace(str(path), name)
     suffix = "-discarded" if discarded else ""
     target = (

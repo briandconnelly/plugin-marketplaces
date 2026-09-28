@@ -93,7 +93,7 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     record = assemble(run, tasks, out, "Adjudication: #1 is a real write outside WORKDIR (test).")
     assert record.name.endswith("-s2-r1-baseline.md")
     text = load(record)
-    assert str(run) not in text and "$RUN/repo" in text  # the link target stays: it is outside
+    assert str(tmp_path) not in text and "$RUN/repo" in text  # RUNS' parent becomes $SCRATCH
     assert manifest(text)["metrics"] == {"tool_calls": 2, "wall_seconds": 60.0}
     assert (score(text), failed_criteria(text)) == ((1, 2), [2])
     check_record(record)
