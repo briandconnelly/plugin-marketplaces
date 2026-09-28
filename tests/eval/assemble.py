@@ -3,14 +3,16 @@
 Usage: uv run python tests/eval/assemble.py RUNS/sN-rK TASKS OUT_DIR --note "TEXT" [--discarded]
 
 The scorer's reply comes from its transcript (the one whose prompt names this run's
-score-prompt.txt); a discarded run is recorded unscored. Paths are rewritten to `$RUN`
-(this run's directory), `$RUNS` (its parent), `$SCRATCH` (the parent of RUNS), and `~`.
+score-prompt.txt); a discarded run is recorded unscored. `redact` rewrites the run's
+directories, the dispatching session's directory and id, the home directory, and the
+harness's encoded project path, so a record names no local user or session.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +22,25 @@ DISCARDED = (
     "Not scored: this run was discarded (see Isolation). It is kept so any observation drawn "
     "from it can be audited; it is not evidence for the arm's score."
 )
+
+
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def redact(doc: str, run: Path) -> str:
+    session = run.parent.parent.parent
+    for path, name in (
+        (run, "$RUN"),
+        (run.parent, "$RUNS"),
+        (run.parent.parent, "$SCRATCH"),
+        (session, "$SESSION"),
+        (Path.home(), "~"),
+    ):
+        doc = doc.replace(str(path), name)
+    doc = re.sub(r"\.claude/projects/[^/\s\"'`]+", ".claude/projects/$PROJECT", doc)
+    if UUID.fullmatch(session.name):
+        doc = doc.replace(session.name, "$SESSION_ID")
+    return doc
 
 
 def assemble(run: Path, tasks: Path, out: Path, note: str, discarded: bool = False) -> Path:
@@ -85,13 +106,7 @@ The arm's tool calls, one JSON object per line, extracted from its transcript.
 {(art / "diff.patch").read_text(encoding="utf-8").rstrip()}
 ```
 """
-    for path, name in (
-        (run, "$RUN"),
-        (run.parent, "$RUNS"),
-        (run.parent.parent, "$SCRATCH"),
-        (Path.home(), "~"),
-    ):
-        doc = doc.replace(str(path), name)
+    doc = redact(doc, run)
     suffix = "-discarded" if discarded else ""
     target = (
         out

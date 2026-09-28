@@ -311,7 +311,7 @@ Expected: PASS (3 tests).
 
 - [ ] **Step 3: Check on a real transcript**
 
-Plan 2a's s1 arm transcript is `/private/tmp/claude-501/-Users-bdc-projects-skills/15d3be1b-5676-4473-b859-077aa7a251cf/tasks/a16245a1c8827f505.output`; if it still exists, `uv run python -c "import sys; sys.path.insert(0, 'tests/eval'); from transcript import load; from pathlib import Path; t = load(Path('<that path>')); print(t.metrics(), len(t.results))"` must print `{'tool_calls': 26, 'wall_seconds': 249.8} 26`, matching the plan-2a summary's s1 row (26 calls, 249 s).
+Plan 2a's s1 arm transcript is `$SESSION/tasks/a16245a1c8827f505.output`; if it still exists, `uv run python -c "import sys; sys.path.insert(0, 'tests/eval'); from transcript import load; from pathlib import Path; t = load(Path('<that path>')); print(t.metrics(), len(t.results))"` must print `{'tool_calls': 26, 'wall_seconds': 249.8} 26`, matching the plan-2a summary's s1 row (26 calls, 249 s).
 Record the result, or the file's absence, in the ledger.
 
 - [ ] **Step 4: Commit**

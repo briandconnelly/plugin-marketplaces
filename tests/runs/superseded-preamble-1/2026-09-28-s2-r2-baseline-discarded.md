@@ -56,7 +56,7 @@ Flags raised by `tests/eval/isolation.py` (tests/scenarios.md, How to run, step 
 #8 outside-write: sed $SCRATCH/.claude-plugin/marketplace.json
 #8 cli-env: claude without CLAUDE_CONFIG_DIR inside WORKDIR
 #8 outside-read: claude $SCRATCH
-#8 outside-read: cd /private/tmp/claude-501/-Users-bdc-projects-skills/0cb38abb-81e7-44aa-9a78-e2678b385bc4
+#8 outside-read: cd $SESSION
 ```
 
 DISCARDED: the arm downloaded codexdoc.html into the dispatching session's scratchpad (curl -o), then copied its repository to $SCRATCH/vcheck, edited it there, and ran claude plugin validate on it: writes outside its run directory. The flag '#7 cli-prompt: claude' is `command -v claude`, a lookup, not a prompt. Replaced by s2-r4.
