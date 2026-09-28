@@ -1,0 +1,8 @@
+{
+  "name": "lint-kit",
+  "version": "1.0.0",
+  "description": "Run the team's linters",
+  "author": {
+    "name": "Acme"
+  }
+}

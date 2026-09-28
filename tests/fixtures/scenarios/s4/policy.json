@@ -1,0 +1,7 @@
+{
+  "readers": [
+    "claude-code",
+    "codex",
+    "copilot-cli"
+  ]
+}

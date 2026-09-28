@@ -1,0 +1,8 @@
+{
+  "name": "claude-hooks",
+  "version": "1.0.0",
+  "description": "Run prompt hooks at session start",
+  "author": {
+    "name": "Acme"
+  }
+}

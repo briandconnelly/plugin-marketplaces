@@ -1,0 +1,24 @@
+{
+  "name": "acme-tools",
+  "owner": {
+    "name": "Acme"
+  },
+  "description": "Acme agent plugins",
+  "plugins": [
+    {
+      "name": "alpha-notes",
+      "source": "./plugins/alpha-notes",
+      "description": "alpha-notes"
+    },
+    {
+      "name": "branch-tidy",
+      "source": "./plugins/branch-tidy",
+      "description": "branch-tidy"
+    },
+    {
+      "name": "claude-hooks",
+      "source": "./plugins/claude-hooks",
+      "description": "claude-hooks"
+    }
+  ]
+}

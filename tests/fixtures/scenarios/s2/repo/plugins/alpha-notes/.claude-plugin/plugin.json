@@ -1,0 +1,8 @@
+{
+  "name": "alpha-notes",
+  "version": "1.0.0",
+  "description": "Take meeting notes",
+  "author": {
+    "name": "Acme"
+  }
+}
