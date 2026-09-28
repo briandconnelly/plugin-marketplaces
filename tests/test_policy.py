@@ -95,3 +95,10 @@ def test_explicit_policy_path(tmp_path):
     policy, findings = load_policy(tmp_path, custom, READERS, READING)
     assert findings == []
     assert policy.readers == ("codex",)
+
+
+def test_explicit_policy_path_that_does_not_exist_is_an_error(tmp_path):
+    policy, findings = load_policy(tmp_path, tmp_path / "typo.json", READERS, READING)
+    assert ids(findings) == ["policy.invalid"]
+    assert policy.readers == ()
+    assert policy.declared is True

@@ -201,10 +201,13 @@ def _directly_validated_indexes(repo: Repo, targets: list[Path]) -> set[int]:
     catalog = repo.catalogs.get(CLAUDE_CATALOG)
     if catalog is None:
         return set()
+    # The root is only ever the marketplace run; a plugin at the root is unreachable,
+    # so its nested issues must stay in the marketplace run's findings.
+    plugin_targets = [target for target in targets if target != repo.root]
     return {
         index
         for index, entry in catalog.entries
-        if resolve_local(repo.root, entry.get("source"), catalog.plugin_root) in targets
+        if resolve_local(repo.root, entry.get("source"), catalog.plugin_root) in plugin_targets
     }
 
 
@@ -261,6 +264,7 @@ def run_claude_validate(
             )
             inconclusive = True
             continue
+        surviving = len(findings)
         for item in [report["manifest"] or {}, *(report.get("contents") or [])]:
             if not isinstance(item, dict):
                 continue
@@ -284,6 +288,10 @@ def run_claude_validate(
                             source=CLAUDE_REF,
                         )
                     )
+        if not report["success"] and len(findings) == surviving:
+            # A reported failure with no issue left after filtering is not evidence of a pass.
+            findings.append(_crashed(repo, target, "it reported failure but no issue survived"))
+            inconclusive = True
     if inconclusive:
         return findings, Status.INCONCLUSIVE, "a validator run produced no usable report"
     if any(f.severity == Severity.ERROR for f in findings):

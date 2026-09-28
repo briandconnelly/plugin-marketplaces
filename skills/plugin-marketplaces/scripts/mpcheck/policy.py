@@ -60,9 +60,16 @@ def load_policy(
     reading: dict[str, str | None],
 ) -> tuple[Policy, list[Finding]]:
     root = root.resolve()
+    explicit = path is not None
     path = (path if path is not None else root / POLICY_FILE).resolve()
     rel = _display(root, path)
     findings: list[Finding] = []
+    if explicit and not path.is_file():
+        # A path the maintainer named is never replaced by a guess.
+        findings.append(
+            Finding("policy.invalid", Severity.ERROR, rel, "policy file not found", rule="R1")
+        )
+        return Policy((), (), declared=True), findings
     if not path.is_file():
         # Infer only readers whose own first-choice catalog exists; a tool that merely
         # falls back to another tool's catalog is not assumed to be a target.

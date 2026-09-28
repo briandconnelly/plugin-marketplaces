@@ -259,3 +259,43 @@ def test_report_without_manifest_key_is_inconclusive(market):
         repo_of(market), runner=fake_runner(json.dumps(report), 0), which=lambda _: FOUND
     )
     assert status == Status.INCONCLUSIVE
+
+
+def root_plugin_repo(root):
+    write(
+        root,
+        ".claude-plugin/marketplace.json",
+        {"name": "solo", "owner": {"name": "T"}, "plugins": [{"name": "solo", "source": "./"}]},
+    )
+    write(root, ".claude-plugin/plugin.json", {"name": "solo", "version": "1.0.0"})
+    return repo_of(root)
+
+
+def test_nested_error_is_kept_when_the_plugin_run_is_unreachable(tmp_path):
+    # Shape observed from claude 2.1.283 on a repo whose root is marketplace and plugin.
+    nested = {"path": "plugins[0] plugin.json → version", "message": "Invalid input"}
+    report = {"success": False, "manifest": {"errors": [nested], "warnings": []}, "contents": []}
+    runner = fake_runner(json.dumps(report), 1)
+    findings, status, _ = run_claude_validate(
+        root_plugin_repo(tmp_path), runner=runner, which=lambda _: FOUND
+    )
+    assert status == Status.FAILED
+    assert [f.pointer for f in findings if f.check == "schema.claude-validate.error"] == [
+        "plugins[0] plugin.json → version"
+    ]
+
+
+def test_reported_failure_with_nothing_surviving_is_inconclusive(market):
+    # Every issue is a nested manifest issue for a directly validated plugin, so all are
+    # filtered from the marketplace run; a failure with no surviving issue is not a pass.
+    nested = {"path": "plugins[0] plugin.json → author", "message": "No author information"}
+    failing = {"success": False, "manifest": {"errors": [], "warnings": [nested]}, "contents": []}
+    passing = {"success": True, "manifest": {"errors": [], "warnings": []}, "contents": []}
+
+    def run(argv):
+        report, code = (failing, 1) if argv[-1] == str(market.resolve()) else (passing, 0)
+        return subprocess.CompletedProcess(argv, code, stdout=json.dumps(report), stderr="")
+
+    findings, status, _ = run_claude_validate(repo_of(market), runner=run, which=lambda _: FOUND)
+    assert status == Status.INCONCLUSIVE
+    assert "schema.claude-validate.crashed" in ids(findings)
