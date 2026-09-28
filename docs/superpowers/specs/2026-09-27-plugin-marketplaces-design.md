@@ -58,7 +58,7 @@ A tool whose phase-0 gate fails is removed from scope before any reference text 
 Each fact below was read in source or docs, or observed by a live probe, on 2026-09-27; the references will carry the full provenance.
 
 - Claude's `.claude-plugin/marketplace.json` schema is a shared catalog dialect: Codex, Copilot CLI, and VS Code all read that path.
-- Native catalog locations: Codex reads `.agents/plugins/marketplace.json` before `.claude-plugin/marketplace.json`; Copilot CLI and VS Code read `marketplace.json`, `.plugin/marketplace.json`, `.github/plugin/marketplace.json`, then `.claude-plugin/marketplace.json`, first match wins.
+- Native catalog locations: Codex reads `.agents/plugins/marketplace.json`, `.agents/plugins/api_marketplace.json`, `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, first match wins; Copilot CLI and VS Code read `marketplace.json`, `.plugin/marketplace.json`, `.github/plugin/marketplace.json`, then `.claude-plugin/marketplace.json`, first match wins.
 - Readers accept different `source` types: Codex accepts `./` paths, `url`, `git-subdir`, `npm` and silently skips `github`; Copilot CLI accepts paths, `github`, `url`; VS Code accepts paths, `github`, `url`, `git-subdir`, `npm`, `pip`; Claude Code accepts paths, `github`, `url`, `git-subdir`, `npm`, `archive`, `command`.
 - Codex skips an unreadable catalog entry with only a log warning; Claude Code ignores unknown keys at load and only `validate` warns.
 - Agent Plugins 1.0 defines a closed root `plugin.json` plus fixed `skills/` and `mcp.json`, client data under reverse-domain `extensions`, and no catalog format.
@@ -124,15 +124,18 @@ Body sections:
    - R1 Declare the target readers in `marketplace-policy.json` before choosing sources or layouts.
    - R2 Use only source types that every declared reader of that catalog accepts.
    - R3 Local sources start with `./`, contain no `..`, and resolve (after symlinks) inside the marketplace root.
-   - R4 Remote sources carry a full commit `sha`; a pin moves only after the diff between the old and new commits has been reviewed.
-   - R5 Record a plugin's version in exactly one field per format, keep the values equal across formats, and change it on every release.
-   - R6 A catalog entry's `name` equals the plugin manifest's `name`, and satisfies every declared reader's name rules.
-   - R7 Treat a published plugin name as permanent; rename or remove through the reader's documented mechanism (`renames`, `forceRemoveDeletedPlugins`) where one exists.
-   - R8 Every difference in membership or version between catalogs in one repo has a recorded reason in `marketplace-policy.json`.
-   - R9 An entry's description discloses executable components (hooks, MCP servers, LSP servers, `bin/`) and external services.
-   - R10 Report schema, local, remote, and install-probe results separately; report skipped or inconclusive checks as such.
-   - R11 When a covered tool's installed version is newer than the version a reference was verified against, re-check any fact the current decision depends on against the live source before relying on it; when the reference and an official validator disagree, follow the validator and report the disagreement.
-   - R12 Never install into the user's real tool configuration or execute plugin code while validating.
+   - R4 Every remote source is pinned to immutable content using its source type's mechanism: a full commit `sha` for git sources (`github`, `url`, `git-subdir`), `sha256` for `archive`, an exact version (not a range or dist-tag) for `npm`; `command` sources are not used in a published catalog because they cannot be pinned.
+   - R5 A pin moves only after the change between the old and new pinned content has been reviewed.
+   - R6 For each reader, the plugin's version is set in that reader's authoritative field (the per-reader table in `releases.md`), and every version value recorded anywhere for that plugin is equal.
+   - R7 A release changes the version value in every place R6 records it.
+   - R8 A catalog entry's `name` equals the plugin manifest's `name`, and satisfies every declared reader's name rules.
+   - R9 Treat a published plugin name as permanent; rename or remove through the reader's documented mechanism (`renames`, `forceRemoveDeletedPlugins`) where one exists.
+   - R10 Every difference in membership or version between catalogs in one repo has a recorded reason in `marketplace-policy.json`.
+   - R11 An entry's description discloses executable components (hooks, MCP servers, LSP servers, `bin/`) and external services.
+   - R12 Report schema, local, remote, catalog-discovery, and package-load results separately; report skipped or inconclusive checks as such.
+   - R13 When a covered tool's installed version is newer than the version a reference was verified against, re-check any fact the current decision depends on against the live source before relying on it.
+   - R14 When a reference and an official validator disagree, follow the validator and report the disagreement.
+   - R15 Never install into the user's real tool configuration or execute plugin code while validating.
 4. Reference map: one line per reference file saying when to read it.
 
 Rule text lives only in SKILL.md; references cite rules by id and never restate them.
@@ -152,34 +155,40 @@ Every reference opens with a provenance block: doc URLs, upstream repo and commi
 - `multi-tool.md`: the §2 packaging and catalog defaults, why, what each tool reads from a dual-packaged plugin, and when to deviate.
 - `releases.md`: bump discipline per tool, pinning, reviewing a pin move, pin drift, renames and removals, how a change reaches users in each tool.
 - `validation.md`: the four check levels, what each instrument can and cannot prove, how to read the validator's output, and how to run the probes.
-- `freshness.md`: the provenance block format, the R11 procedure, and how a maintainer refreshes a fact and its pin.
+- `freshness.md`: the provenance block format, the R13 procedure, and how a maintainer refreshes a fact and its pin.
 
 ## 8. Validator: `scripts/check_marketplace.py`
 
 Runtime: a `uv run` script with PEP 723 inline metadata, Python ≥ 3.12, `jsonschema` as the only third-party dependency.
-It never installs into real tool configuration and never executes plugin code (R12).
+It never installs into real tool configuration and never executes plugin code (R15).
 
 Inputs: a repository path; optional `--policy` (defaults to `marketplace-policy.json` at the root); `--remote`; `--probe <tool>...`; `--format json|text`.
 
-`marketplace-policy.json` declares `readers` per catalog file and `exceptions` (plugin name, catalogs, reason) for R8; when absent, the validator infers readers from which catalog files exist and reports that inference as a finding.
+`marketplace-policy.json` declares `readers` per catalog file and `exceptions` (plugin name, catalogs, reason) for R10; when absent, the validator infers readers from which catalog files exist and reports that inference as a finding.
 
 Check levels:
 
 1. Schema, offline.
    - Parse every catalog and manifest with duplicate-key detection.
    - Run `claude plugin validate --strict --json` on the repo and on each local plugin when `claude` is on `PATH`; report `skipped` otherwise.
-   - Validate portable `plugin.json` and `mcp.json` against the vendored schemas, applying the spec's report-and-ignore exceptions for unknown top-level keys and non-object `extensions`.
+   - Validate portable manifests at the spec's own failure granularity: root `plugin.json` (plugin rejected or loaded, with the report-and-ignore exceptions for unknown top-level keys and non-object `extensions`), `mcp.json` as a whole (MCP disabled, other components still load), and each MCP server entry (that server skipped); report status per plugin, component, and entry.
 2. Local, offline — the checks no official validator covers:
    - R3 path rules, including symlink escape and nonexistent targets.
    - R2 source types against each declared reader's accepted set.
-   - R5 version agreement across `.claude-plugin/plugin.json`, root `plugin.json`, `.codex-plugin/plugin.json`, and catalog entries.
-   - R6 entry-name equals manifest-name, and name-rule intersection.
-   - R8 catalog membership and version parity, against recorded exceptions.
-   - R4 remote sources missing a `sha`.
+   - R6 authoritative version field present per reader, and every recorded version value equal across `.claude-plugin/plugin.json`, root `plugin.json`, `.codex-plugin/plugin.json`, and catalog entries.
+   - R8 entry-name equals manifest-name, and name-rule intersection.
+   - R10 catalog membership and version parity, against recorded exceptions.
+   - R4 remote sources missing their source type's pin (`sha`, `sha256`, exact npm version), and `command` sources in a catalog.
    - Claude entry `hooks` given as a path or array.
    - The portable-format pitfalls: root `plugin.json` without the Agent Plugins `$schema`, symlinked root manifest, `.mcp.json` servers lacking a transport `type` when mirrored to `mcp.json`.
-3. Remote, opt-in (`--remote`): `git ls-remote` confirms each `ref` exists and reports when the ref no longer points at the pinned `sha` (pin drift); a pinned `sha` is fetched with a shallow, no-checkout fetch to confirm it exists; network or auth failure is `inconclusive`.
-4. Install probe, opt-in (`--probe`): load the catalog into a throwaway config directory for each named tool, list what loaded, and diff that against the catalog; entries the tool silently skipped become findings.
+3. Remote, opt-in (`--remote`), with source-specific checks reported as separate results:
+   - git, ref drift: `git ls-remote` reports whether `ref` exists and whether it still points at the pinned `sha`; a missing or moved ref is informational, because a pinned `sha` can still install.
+   - git, pin reachability: a no-checkout fetch of the pinned `sha`; a host that refuses fetch-by-SHA, or any network or auth failure, is `inconclusive`, never `failed`.
+   - npm: the registry lists the exact pinned version.
+   - archive: the URL is reachable over HTTPS and its content matches `sha256`.
+4. Probes, opt-in (`--probe <tool>`), each in a throwaway config directory, with two distinct levels:
+   - Catalog discovery: the tool lists the catalog's entries; entries it silently skipped become findings; a fixture entry known to be rejected must be absent, or the probe reports itself broken.
+   - Package load: the tool loads a plugin and exposes an observable component (for example a listed skill); a tool that offers no such observation reports this level as `unproven`, never `passed`.
 
 Each check id maps to the rule id and the provenance anchor it implements.
 Output: findings `{check, level, rule, severity, file, pointer, message, source}` plus a per-level status table (`passed`, `failed`, `skipped`, `inconclusive`).
@@ -216,7 +225,10 @@ Reader source-type tables live in one data file, `scripts/readers.json`, which `
 
 ## 11. Delivery phases
 
-0. Feasibility spike (throwaway): prove a headless load probe for Copilot CLI and for VS Code that distinguishes a loaded catalog entry from a rejected one; any tool without a working probe leaves scope (§3.1).
+0. Feasibility spike (throwaway), exit criterion per tool: a headless, isolated probe that shows an accepted fixture entry and omits a known-rejected control entry; any tool without one leaves scope (§3.1) before its reference is written.
+   - Copilot CLI: set `COPILOT_HOME` and `COPILOT_CACHE_HOME` to temporary directories, `copilot plugin marketplace add <fixture path>`, then `copilot plugin marketplace browse <name> --json`.
+   - VS Code: `code` 1.139.1 has no plugin-marketplace command, so the spike must demonstrate a read-only observation of the workbench plugin marketplace service (for example an extension-host test run with a throwaway `--user-data-dir`) that asserts both controls; launching the app without a machine-readable result does not satisfy the criterion.
+   - Package-load observability is recorded per tool; where none exists, that tool's package-load level stays `unproven` (§8).
 1. Repository skeleton, vendored schemas, `readers.json`, validator with offline levels and its tests, calibration run.
 2. References and SKILL.md, each fact backed by a provenance entry.
 3. Conformance probes and upstream drift tooling with the weekly Action.
