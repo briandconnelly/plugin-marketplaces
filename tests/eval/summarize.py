@@ -1,6 +1,9 @@
 """Tabulate run records: one row per run, then one row per scenario.
 
-Usage: uv run python tests/eval/summarize.py tests/runs/DATE-*-ARM*.md
+Usage: uv run python tests/eval/summarize.py tests/runs/DATE-s?-r[0-9]*-ARM*.md
+
+Only `sN-rK` record names are accepted; the plan-2a records in the same directory (for example
+`DATE-s1-baseline-discarded.md`) use an older form and are rejected with a `ValueError`.
 """
 
 from __future__ import annotations
