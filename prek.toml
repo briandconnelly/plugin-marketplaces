@@ -17,7 +17,7 @@ repo = "local"
 hooks = [
   { id = "ruff-check", name = "ruff check", language = "system", entry = "uv run ruff check --fix", types = ["python"] },
   { id = "ruff-format", name = "ruff format", language = "system", entry = "uv run ruff format", types = ["python"] },
-  { id = "ty", name = "ty check", language = "system", entry = "uv run ty check --extra-search-path skills/plugin-marketplaces/scripts --extra-search-path tests --extra-search-path tools", pass_filenames = false, types = ["python"] },
+  { id = "ty", name = "ty check", language = "system", entry = "uv run ty check --extra-search-path skills/plugin-marketplaces/scripts --extra-search-path tests --extra-search-path tests/eval --extra-search-path tools", pass_filenames = false, types = ["python"] },
   { id = "pytest", name = "pytest", language = "system", entry = "uv run pytest -q", pass_filenames = false, files = "^(skills/|tests/|tools/|pyproject\\.toml$)" },
   { id = "sentence-per-line", name = "Markdown: one sentence per line", language = "system", entry = "uv run python tools/check_sentence_per_line.py", files = "\\.md$", exclude = "^docs/research/" },
   { id = "skill-frontmatter", name = "SKILL.md frontmatter (agentskills.io)", language = "system", entry = "uv run python tools/check_skill_frontmatter.py", files = "(^|/)SKILL\\.md$" },
