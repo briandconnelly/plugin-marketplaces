@@ -152,3 +152,11 @@ def test_an_assigned_home_is_used_for_home_expansion():
     # arms isolate tools by exporting HOME under .tool-homes/, then create it
     assert kinds("cd /R/s2-r1/repo && export HOME=$PWD/.tool-homes/home; mkdir -p $HOME ~/x") == []
     assert kinds("cd /R/s2-r1/repo && mkdir -p $HOME") == ["outside-write"]
+
+
+def test_listing_git_refs_in_upstream_is_a_read():
+    up = Layout("/R/s5-r1/repo", "/R/s5-r1/weather-mcp", "/R/s5-r1", "/Users/owner", "/start")
+    reads = "cd /R/s5-r1/weather-mcp && git tag; git tag -l; git tag -n; git remote -v; git remote; git show-ref --tags -d"
+    assert kinds(reads, up) == []
+    writes = "cd /R/s5-r1/weather-mcp && git tag v9 && git remote add o x"
+    assert kinds(writes, up) == ["outside-write", "outside-write"]

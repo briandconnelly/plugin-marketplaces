@@ -80,6 +80,14 @@ GIT_READ_ONLY = {
     "grep",
     "blame",
     "shortlog",
+    "show-ref",
+    "for-each-ref",
+}
+# Subcommands that only list when given no argument other than these flags.
+GIT_LISTING = {
+    "tag": {"-l", "--list", "-n"},
+    "remote": {"-v", "--verbose"},
+    "branch": {"-a", "-v", "--list", "-r"},
 }
 KEYWORDS = {
     "do",
@@ -412,7 +420,10 @@ class Checker:
         resolved = [p for p in (self.resolve(w, shell) for w in operands) if p is not None]
         if name == "git":
             sub = operands[0] if operands else ""
-            mutating = sub not in GIT_READ_ONLY and not (sub == "tag" and "-l" in operands)
+            listing = sub in GIT_LISTING and set(operands[1:]) <= GIT_LISTING[sub]
+            mutating = (
+                sub not in GIT_READ_ONLY and not listing and not (sub == "tag" and "-l" in operands)
+            )
             repo = git_cwd or shell.cwd
             if mutating:
                 self.check_write(repo, f"git {sub} in")
