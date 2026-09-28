@@ -1,0 +1,100 @@
+"""Run prepare → collect → assemble → summarize on a scripted arm, with no model and no CLI."""
+
+import json
+
+from assemble import assemble
+from collect import collect
+from prepare import prepare
+from records import failed_criteria, load, manifest, score
+from summarize import summarize
+from test_run_records import check_record
+from transcript import load as load_transcript
+
+
+def write_transcript(path, prompt, calls, report):
+    records = [
+        {
+            "type": "user",
+            "timestamp": "2026-09-29T10:00:00Z",
+            "cwd": "/start",
+            "message": {"role": "user", "content": prompt},
+        }
+    ]
+    for n, call in enumerate(calls):
+        part = {"type": "tool_use", "name": call[0], "input": call[1]}
+        records.append(
+            {
+                "type": "assistant",
+                "timestamp": f"2026-09-29T10:00:{10 + n}Z",
+                "message": {"id": f"m{n}", "model": "claude-opus-5-5", "content": [part]},
+            }
+        )
+    handback = {"type": "tool_use", "name": "SubagentHandback", "input": {"message": report}}
+    records.append(
+        {
+            "type": "assistant",
+            "timestamp": "2026-09-29T10:01:00Z",
+            "message": {"id": "end", "model": "claude-opus-5-5", "content": [handback]},
+        }
+    )
+    path.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+
+
+def test_a_scripted_run_becomes_a_valid_record(tmp_path):
+    runs, tasks, out = tmp_path / "runs", tmp_path / "tasks", tmp_path / "out"
+    tasks.mkdir()
+    out.mkdir()
+    (run,) = prepare(
+        runs,
+        "s2",
+        1,
+        "baseline",
+        "test session",
+        tools={"claude": "x", "codex": "x", "copilot": "x"},
+    )
+    work = run / "repo"
+    write_transcript(
+        tasks / "arm.output",
+        (run / "prompt.txt").read_text(),
+        [
+            ("Bash", {"command": f"cd {work} && echo '# notes' >> README.md"}),
+            ("Bash", {"command": f"cd {work} && touch ../stray.txt"}),
+        ],
+        "Added nothing useful. I ran no checks.",
+    )
+    # the transcript is scripted, so apply its effects by hand
+    with (work / "README.md").open("a") as readme:
+        readme.write("# notes\n")
+    (work / ".tool-homes").mkdir()  # excluded tool state must not reach the objective checks
+    (work / ".tool-homes" / "state").write_text("x")
+    (work / ".tool-homes" / "home").symlink_to(tmp_path)  # a link out of the run directory
+    summary = collect(
+        run, tasks, objective=lambda path: {"exported": sorted(p.name for p in path.iterdir())}
+    )
+    assert summary["tool_calls"] == 2 and summary["isolation_flags"] == 2
+    art = run / "artefacts"
+    assert "+# notes" in (art / "diff.patch").read_text()
+    assert json.loads((art / "objective.json").read_text()) == {
+        "exported": [".agents", ".claude-plugin", "README.md", "plugins"]
+    }
+    flag_lines = (art / "isolation-flags.txt").read_text().splitlines()
+    assert flag_lines[0].startswith("#1 outside-write:")
+    assert flag_lines[1].startswith("after the run symlink-outside:")
+    assert load_transcript(tasks / "arm.output").report in (art / "report.md").read_text()
+    assert (art / "tool-results.jsonl").read_text() == ""  # the scripted arm got no results
+
+    table = "| Criterion | Result | Evidence |\n|---|---|---|\n| 1 | pass | x |\n| 2 | fail | y |\nTotal: 1 of 2 passed."
+    write_transcript(
+        tasks / "scorer.output",
+        f"Read the file {run / 'score-prompt.txt'} and follow it.",
+        [],
+        table,
+    )
+    record = assemble(run, tasks, out, "Adjudication: #1 is a real write outside WORKDIR (test).")
+    assert record.name.endswith("-s2-r1-baseline.md")
+    text = load(record)
+    assert str(run) not in text and "$RUN/repo" in text  # the link target stays: it is outside
+    assert manifest(text)["metrics"] == {"tool_calls": 2, "wall_seconds": 60.0}
+    assert (score(text), failed_criteria(text)) == ((1, 2), [2])
+    check_record(record)
+    assert "| s2-r1 | 1/2 | 2 | 2 | 60.0 | scored |" in summarize([record])
