@@ -171,9 +171,82 @@ def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) ->
     return findings
 
 
+def check_names(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    for catalog in active_catalogs(repo, policy):
+        catalog_readers = _readers_of(repo, readers, policy, catalog)
+        name = catalog.data.get("name")
+        for reader in catalog_readers:
+            pattern = reader.marketplace_name_re
+            if pattern is not None and not (isinstance(name, str) and pattern.fullmatch(name)):
+                findings.append(
+                    Finding(
+                        "local.marketplace-name",
+                        Severity.ERROR,
+                        catalog.relpath,
+                        f"marketplace name {name!r} does not satisfy {reader.id}'s name rule "
+                        f"({pattern.pattern})",
+                        pointer="/name",
+                        source=reader.reference,
+                    )
+                )
+        seen: dict[str, int] = {}
+        for index, entry in catalog.entries:
+            entry_name = entry["name"]
+            assert isinstance(entry_name, str)
+            pointer = f"/plugins/{index}/name"
+            if entry_name in seen:
+                findings.append(
+                    Finding(
+                        "local.duplicate-entry",
+                        Severity.ERROR,
+                        catalog.relpath,
+                        f"entry name {entry_name!r} is also used at /plugins/{seen[entry_name]}",
+                        rule="R8",
+                        pointer=pointer,
+                    )
+                )
+            seen.setdefault(entry_name, index)
+            for reader in catalog_readers:
+                pattern = reader.entry_name_re
+                if pattern is not None and not pattern.fullmatch(entry_name):
+                    findings.append(
+                        Finding(
+                            "local.entry-name-pattern",
+                            Severity.ERROR,
+                            catalog.relpath,
+                            f"entry name {entry_name!r} does not satisfy {reader.id}'s name rule "
+                            f"({pattern.pattern})",
+                            rule="R8",
+                            pointer=pointer,
+                            source=reader.reference,
+                        )
+                    )
+            plugin = repo.plugin_for(entry, catalog)
+            if plugin is None:
+                continue
+            prefix = plugin.directory.relative_to(repo.root).as_posix()
+            for manifest_rel, manifest in plugin.manifests.items():
+                manifest_name = manifest.get("name")
+                if isinstance(manifest_name, str) and manifest_name != entry_name:
+                    findings.append(
+                        Finding(
+                            "local.name-mismatch",
+                            Severity.ERROR,
+                            catalog.relpath,
+                            f"entry {entry_name!r} but {prefix}/{manifest_rel} names the plugin "
+                            f"{manifest_name!r}; tools install by one and namespace by the other",
+                            rule="R8",
+                            pointer=pointer,
+                        )
+                    )
+    return findings
+
+
 LOCAL_CHECKS: list[Check] = [
     check_reader_coverage,
     check_unread_catalogs,
     check_source_types,
     check_local_paths,
+    check_names,
 ]
