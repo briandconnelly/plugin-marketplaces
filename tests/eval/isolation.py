@@ -12,6 +12,8 @@ Flag kinds:
 - `outside-read`: a path outside the arm's run directory (reads) or outside WORKDIR (cd).
 - `outside-write`: a path written outside WORKDIR, including UPSTREAM.
 - `cli-prompt`: a claude/codex/copilot invocation outside the allowlist, which may send a prompt.
+- `cli-session`: a bare `codex app-server`, allowed only if the JSON-RPC it was sent starts
+  no turn; a person checks that.
 - `cli-env`: a claude/codex/copilot invocation without its throwaway configuration variables
   exported and pointing inside WORKDIR.
 - `relative-file-path`: a file tool given a relative path.
@@ -412,6 +414,14 @@ class Checker:
         if tool == "codex" and sub == "sandbox" and "--" in rest:
             # `codex sandbox -- CMD` runs CMD locally under Codex's sandbox: check CMD itself
             self.simple(rest[rest.index("--") + 1 :], shell, [])
+        elif (
+            tool == "codex"
+            and sub == "app-server"
+            and sub2 is None
+            and not PROMPT_FLAGS & set(rest)
+        ):
+            # allowed only if the JSON-RPC sent starts no turn (tests/scenarios.md step 5)
+            self.flag("cli-session", f"{tool} {' '.join(rest)[:120]}")
         elif PROMPT_FLAGS & set(rest) or not (
             sub in CLI_ALLOWED[tool] or (sub, sub2) in CLI_LOCAL.get(tool, set())
         ):

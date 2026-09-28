@@ -212,7 +212,10 @@ def test_local_only_subcommands_are_allowed_and_wrapped_commands_checked():
     assert kinds(W + env + "copilot skill list") == []
     assert kinds(W + env + "codex sandbox -- codex plugin list") == []
     assert kinds(W + env + "codex sandbox -- copilot -p hi") == ["cli-prompt"]
-    assert kinds(W + env + "codex app-server") == ["cli-prompt"]
+    # a bare app-server is allowed only if its recorded JSON-RPC starts no turn: it is flagged
+    # as a session so a person checks that, and `copilot --acp` stays forbidden
+    assert kinds(W + env + "codex app-server") == ["cli-session"]
+    assert kinds(W + env + "copilot --acp") == ["cli-prompt"]
 
 
 def test_bare_write_operands_resolve_against_the_working_directory():
