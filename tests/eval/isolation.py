@@ -36,10 +36,14 @@ CLI_VARS = {
 }
 # Subcommands that manage plugins or MCP configuration and never send a prompt.
 CLI_ALLOWED = {
-    "claude": {"plugin"},
+    "claude": {"plugin", "mcp"},
     "codex": {"plugin", "mcp", "features"},
-    "copilot": {"plugin", "mcp"},
+    "copilot": {"plugin", "mcp", "skill"},
 }
+# Subcommand pairs that run locally and send no prompt (adopted 2026-09-28, tests/scenarios.md).
+CLI_LOCAL = {"codex": {("debug", "prompt-input"), ("app-server", "generate-json-schema")}}
+# Global options whose next word is a value, not the subcommand.
+OPTIONS_WITH_VALUE = {"--plugin-dir", "--disable", "--enable", "-c", "--config"}
 HELP_WORDS = {"--version", "-V", "-v", "--help", "-h"}
 PROMPT_FLAGS = {"-p", "--print", "--prompt"}
 SYSTEM_PREFIXES = (
@@ -298,6 +302,8 @@ class Checker:
                 i += 1
         for target in writes:
             path = self.resolve(target, shell)
+            if path is None and target and "/" not in target and "$" not in target:
+                path = _norm(str(PurePosixPath(shell.cwd) / target))  # bare file name
             if path is not None:
                 self.check_write(path, "redirect to")
                 if heredoc is not None:
@@ -353,6 +359,8 @@ class Checker:
                 self.follow(
                     args[0:1], shell, _Shell(shell.cwd, dict(shell.env), set(shell.exported))
                 )
+            elif path is not None and _inside(path, self.layout.run_dir or self.layout.work):
+                self.flag("sourced-unknown", args[0])  # a script whose content was never seen
         if name in CLI_VARS:
             self.cli(name, args[1:], shell, inline)
         self.paths(name, args, shell)
@@ -392,14 +400,42 @@ class Checker:
     def cli(self, tool: str, rest: list[str], shell: _Shell, inline: dict[str, str]) -> None:
         if (rest and rest[0] in {"help", *HELP_WORDS}) or HELP_WORDS & set(rest) - {"-v"}:
             return  # version or help output only (tests/scenarios.md, How to run)
-        sub = next((w for w in rest if not w.startswith("-")), None)
-        if PROMPT_FLAGS & set(rest) or sub not in CLI_ALLOWED[tool]:
+        words, skip = [], False
+        for w in rest:
+            if skip:
+                skip = False
+            elif w in OPTIONS_WITH_VALUE:
+                skip = True
+            elif not w.startswith("-"):
+                words.append(w)
+        sub, sub2 = (words + [None, None])[:2]
+        if tool == "codex" and sub == "sandbox" and "--" in rest:
+            # `codex sandbox -- CMD` runs CMD locally under Codex's sandbox: check CMD itself
+            self.simple(rest[rest.index("--") + 1 :], shell, [])
+        elif PROMPT_FLAGS & set(rest) or not (
+            sub in CLI_ALLOWED[tool] or (sub, sub2) in CLI_LOCAL.get(tool, set())
+        ):
             self.flag("cli-prompt", f"{tool} {' '.join(rest)[:120]}")
         for var in CLI_VARS[tool]:
             value = inline.get(var) or (shell.env.get(var) if var in shell.exported else None)
             path = self.resolve(value, shell) if value else None
             if path is None or not _inside(path, self.layout.work):
                 self.flag("cli-env", f"{tool} without {var} inside WORKDIR")
+
+    def global_git_config(self, shell: _Shell) -> None:
+        """`git config --global` writes GIT_CONFIG_GLOBAL, else ~/.gitconfig or the XDG file."""
+        home, env = self.layout.home, shell.env
+        if "GIT_CONFIG_GLOBAL" in shell.exported:
+            targets = [env["GIT_CONFIG_GLOBAL"]]
+        else:
+            # an XDG_CONFIG_HOME the call did not set is the session's own, assumed real
+            targets = [
+                env.get("HOME", home) + "/.gitconfig",
+                env.get("XDG_CONFIG_HOME", home + "/.config") + "/git/config",
+            ]
+        for target in targets:
+            path = self.resolve(target, shell)
+            self.check_write(path or target, "git config --global")
 
     def paths(self, name: str, args: list[str], shell: _Shell) -> None:
         if name in ("echo", "printf"):
@@ -425,6 +461,11 @@ class Checker:
                 sub not in GIT_READ_ONLY and not listing and not (sub == "tag" and "-l" in operands)
             )
             repo = git_cwd or shell.cwd
+            if sub == "config" and not {"--list", "-l", "--get", "--get-all"} & set(operands):
+                if "--system" in operands:
+                    self.check_write("/etc/gitconfig", "git config --system")
+                if "--global" in operands:
+                    self.global_git_config(shell)
             if mutating:
                 self.check_write(repo, f"git {sub} in")
                 for p in resolved:
@@ -460,6 +501,8 @@ class Checker:
                     self.flag("relative-file-path", f"{tool} {key}={value}")
                     continue
                 path = _norm(value)
+                if tool == "Write" and isinstance(inp.get("content"), str):
+                    self.files[path] = inp["content"]  # a script run later is followed
                 if tool in ("Write", "Edit", "NotebookEdit"):
                     self.check_write(path, tool)
                 else:

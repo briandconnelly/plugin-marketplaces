@@ -21,10 +21,12 @@ Every step below is a script under `tests/eval/`; run them from this repository'
    - file-tool paths are absolute;
    - reads stay inside the run directory `RUNS/sN-rK/`, which holds only WORKDIR, UPSTREAM, and run bookkeeping, and writes stay inside WORKDIR;
    - `cd` goes only into WORKDIR or UPSTREAM;
-   - `claude` runs only `plugin` subcommands, `codex` only `plugin`, `mcp`, and `features`, and `copilot` only `plugin` and `mcp`, because any other invocation may send a prompt to a model;
+   - `claude` runs only `plugin` and `mcp` subcommands, `codex` only `plugin`, `mcp`, `features`, `debug prompt-input`, `app-server generate-json-schema`, and `sandbox --` (whose command is checked in its place), and `copilot` only `plugin`, `mcp`, and `skill`, because any other invocation may send a prompt to a model;
    - each of those invocations has its tool's configuration variables exported and pointing inside WORKDIR: `CLAUDE_CONFIG_DIR`; `CODEX_HOME`; `COPILOT_HOME` and `COPILOT_CACHE_HOME`;
    - no symlink left under WORKDIR resolves outside the run directory.
    Commands that only print a version or help text (`--version`, `-V`, `--help`, `-h`, `help`) are exempt from the last two rules (adopted 2026-09-28, before any treatment run, after the literal rule flagged version checks in three baseline arms).
+   Also adopted 2026-09-28, before any treatment run, from the plan-2b baseline adjudications: reading an installed tool's program files, or the harness's stored copy of the arm's own tool output, is not a read violation.
+   Network traffic a tool starts by itself (telemetry, an unauthenticated `codex app-server` startup) is not the arm contacting a remote service; a fetch the arm makes deliberately, such as cloning a remote repository, is.
    The throwaway variables do not isolate Copilot CLI's sign-in: a `copilot -p` prompt uses the dispatching user's account and is billed.
    A run with a confirmed violation is discarded, recorded with the `-discarded` suffix, and replaced by a new repetition.
 6. Scan: read every line of `artefacts/secrets.txt` before anything from the run is stored.
