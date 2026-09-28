@@ -20,7 +20,7 @@ from mpcheck.discover import Repo, resolve_local
 from mpcheck.jsonload import DuplicateKeyError, load_json
 from mpcheck.model import Finding, Severity, Status
 
-SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas" / "agent-plugins"
+SCHEMAS_DIR = Path(__file__).resolve().parent / "data" / "schemas" / "agent-plugins"
 PORTABLE_REF = "references/agent-plugins.md"
 CLAUDE_REF = "references/claude-code.md"
 

@@ -4,10 +4,20 @@ version = "0.1.0"
 description = "Agent skill for creating and maintaining user-hosted plugin marketplaces"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = []
+dependencies = ["jsonschema>=4.23"]
+
+[project.scripts]
+check-marketplace = "mpcheck.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["skills/plugin-marketplaces/scripts/mpcheck"]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "jsonschema>=4.23", "pyyaml>=6.0", "ruff", "ty"]
+dev = ["pytest>=8.3", "pyyaml>=6.0", "ruff", "ty"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

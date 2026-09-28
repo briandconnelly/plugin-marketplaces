@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 
 import check_marketplace
+import mpcheck.cli
 from helpers import read, write
 from mpcheck.model import Severity, Status
 from mpcheck.run import run_checks
@@ -56,7 +57,7 @@ def test_validator_crash_exits_two(market, monkeypatch, capsys):
     def boom(*args, **kwargs):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(check_marketplace, "run_checks", boom)
+    monkeypatch.setattr(mpcheck.cli, "run_checks", boom)
     assert check_marketplace.main([str(market)]) == 2
     assert "validator failure" in capsys.readouterr().err
 
