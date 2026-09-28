@@ -31,3 +31,19 @@ def remote(**extra: object) -> dict[str, object]:
         "sha": SHA,
         **extra,
     }
+
+
+def local_ids(root: Path) -> list[str]:
+    """Sorted check ids from discovery, policy, and every local check."""
+    from mpcheck.checks_local import LOCAL_CHECKS
+    from mpcheck.discover import discover
+    from mpcheck.policy import load_policy
+    from mpcheck.readers import load_readers
+
+    readers = load_readers()
+    repo, findings = discover(root, readers)
+    policy, policy_findings = load_policy(repo.root, None, readers, repo.reader_catalog)
+    findings += policy_findings
+    for check in LOCAL_CHECKS:
+        findings += check(repo, readers, policy)
+    return sorted(f.check for f in findings)
