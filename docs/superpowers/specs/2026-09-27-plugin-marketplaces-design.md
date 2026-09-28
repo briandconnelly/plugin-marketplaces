@@ -41,13 +41,13 @@ Success means:
 | Claude Code | catalog + plugin format | `claude plugin validate --strict --json`; `claude plugin marketplace add` into an isolated config dir |
 | Codex | catalog + both plugin formats (portable and `.codex-plugin/` compat) | `codex plugin marketplace add` + `codex plugin list --available --json` under a throwaway `CODEX_HOME` |
 | GitHub Copilot CLI | catalog reader + plugin format | `copilot plugin marketplace add` under an isolated config dir (phase-0 gate) |
-| VS Code agent plugins | catalog reader + plugin format | app launched with a throwaway `--user-data-dir` and `chat.plugins.marketplaces` (phase-0 gate) |
 | Agent Plugins 1.0 | portable plugin package format (no catalog) | vendored official JSON Schemas, plus load probes in the tools above that read portable manifests |
 
 A tool whose phase-0 gate fails is removed from scope before any reference text about it is written.
 
 ### 3.2 Excluded, and why
 
+- VS Code agent plugins: failed the phase-0 gate; its catalog fetch runs only on demand from plugin views, so no headless probe could observe it (`docs/research/2026-09-27-phase0-probes.md`).
 - Cursor, OpenHands, OpenClaw, Factory Droid: they read Claude-dialect catalogs, but no probe can check them here (coverage rule).
 - Kimi Code, Cline, Gemini CLI: vendor-hosted registries, not user-hosted marketplaces.
 - Kiro, Hermes, OpenCode, Amp, Goose, Windsurf: no author-written catalog file.
@@ -59,12 +59,12 @@ A tool whose phase-0 gate fails is removed from scope before any reference text 
 
 Each fact below was read in source or docs, or observed by a live probe, on 2026-09-27; the references will carry the full provenance.
 
-- Claude's `.claude-plugin/marketplace.json` schema is a shared catalog dialect: Codex, Copilot CLI, and VS Code all read that path.
-- Native catalog locations: Codex reads `.agents/plugins/marketplace.json`, `.agents/plugins/api_marketplace.json`, `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, first match wins; Copilot CLI and VS Code read `marketplace.json`, `.plugin/marketplace.json`, `.github/plugin/marketplace.json`, then `.claude-plugin/marketplace.json`, first match wins.
-- Readers accept different `source` types: Codex accepts `./` paths, `url`, `git-subdir`, `npm` and silently skips `github`; Copilot CLI accepts paths, `github`, `url`; VS Code accepts paths, `github`, `url`, `git-subdir`, `npm`, `pip`; Claude Code accepts paths, `github`, `url`, `git-subdir`, `npm`, `archive`, `command`.
+- Claude's `.claude-plugin/marketplace.json` schema is a shared catalog dialect: Codex and Copilot CLI both read that path.
+- Native catalog locations: Codex reads `.agents/plugins/marketplace.json`, `.agents/plugins/api_marketplace.json`, `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, first match wins; Copilot CLI reads `marketplace.json`, `.plugin/marketplace.json`, `.github/plugin/marketplace.json`, then `.claude-plugin/marketplace.json`, first match wins.
+- Readers accept different `source` types: Codex accepts `./` paths, `url`, `git-subdir`, `npm` and silently skips `github`; Copilot CLI accepts paths, `github`, `url`; Claude Code accepts paths, `github`, `url`, `git-subdir`, `npm`, `archive`, `command`.
 - Codex skips an unreadable catalog entry with only a log warning; Claude Code ignores unknown keys at load and only `validate` warns.
 - Agent Plugins 1.0 defines a closed root `plugin.json` plus fixed `skills/` and `mcp.json`, client data under reverse-domain `extensions`, and no catalog format.
-- Codex, Copilot CLI, and VS Code read the portable root `plugin.json`; Claude Code does not.
+- Codex and Copilot CLI read the portable root `plugin.json`; Claude Code does not.
 - `claude plugin validate` does not catch: entry `hooks` given as a path, a relative source pointing at a missing directory, or a wrong remote repo.
 - Codex has no validate command; the practical local check is load-and-list under a throwaway `CODEX_HOME`.
 - In Claude Code, an explicit `version` pins users to the cached copy until the string changes; in Codex, the manifest `version` names the cache directory.
@@ -83,7 +83,6 @@ plugin-marketplaces/                     (repo root; also its own marketplace)
       claude-code.md
       codex.md
       copilot-cli.md
-      vscode.md
       agent-plugins.md
       feature-matrix.md
       multi-tool.md
@@ -91,10 +90,8 @@ plugin-marketplaces/                     (repo root; also its own marketplace)
       validation.md
       freshness.md
     scripts/
-      check_marketplace.py
-      schemas/agent-plugins/1.0.0/plugin.schema.json
-      schemas/agent-plugins/1.0.0/mcp.schema.json
-      schemas/SHA256SUMS
+      check_marketplace.py                uv-run entry point (also installed as `check-marketplace`)
+      mpcheck/                            validator package; data/readers.json and data/schemas/ ship inside it
   tests/
     test_check_marketplace.py
     fixtures/
@@ -105,6 +102,8 @@ plugin-marketplaces/                     (repo root; also its own marketplace)
     test_check_upstream.py
     scenarios.md
     trigger_cases.md
+    eval/objective_checks.py            real-tool checks used when scoring scenario runs
+    fixtures/scenarios/                 generated scenario fixtures (build.py)
   .github/workflows/
     ci.yml                                prek + pytest + validator on the repo's own catalogs
     upstream-drift.yml                    weekly drift check → issue
@@ -148,7 +147,7 @@ Every reference opens with a provenance block: doc URLs, upstream repo and commi
 
 - `claude-code.md`: catalog fields, entry fields, source variants, `strict` semantics, plugin.json fields and component path rules, name rules and reserved names, version resolution and caching, auto-update, private-repo auth, `validate` behaviour and its known gaps.
 - `codex.md`: catalog locations and precedence, entry fields and `policy`, source variants, both plugin formats and detection order, the `extensions.com.openai` overlay, `interface` fields, cache directory naming, discovery and `config.toml` marketplaces, Claude interop and what it drops.
-- `copilot-cli.md`, `vscode.md`: catalog locations and precedence, accepted source types, manifest locations, portable-format support, marketplace registration (command or setting), defaults.
+- `copilot-cli.md`: catalog locations and precedence, accepted source types, manifest locations, portable-format support, marketplace registration (command or setting), defaults.
 - `agent-plugins.md`: manifest and `mcp.json` shapes, failure semantics, path containment, `PLUGIN_ROOT`/`PLUGIN_DATA`, extensions, known schema defects (#76, #77), governance and maturity signals, and the explicit absence of a catalog format.
 - `feature-matrix.md`: three tables, every cell linked to its provenance:
   - components × formats (supported, how declared, default path, merge-or-replace semantics);
@@ -161,7 +160,7 @@ Every reference opens with a provenance block: doc URLs, upstream repo and commi
 
 ## 8. Validator: `scripts/check_marketplace.py`
 
-Runtime: a `uv run` script with PEP 723 inline metadata, Python ≥ 3.12, `jsonschema` as the only third-party dependency.
+Runtime: a `uv run` script with PEP 723 inline metadata, Python ≥ 3.12, `jsonschema` as the only third-party dependency; the same code installs as the `check-marketplace` console script, so another repository's CI can run `uvx --from git+https://github.com/briandconnelly/plugin-marketplaces@<tag> check-marketplace .`.
 It never installs into real tool configuration and never executes plugin code (R15).
 
 Inputs: a repository path; optional `--policy` (defaults to `marketplace-policy.json` at the root); `--remote`; `--probe <tool>...`; `--format json|text`.
@@ -198,11 +197,11 @@ Output: findings `{check, level, rule, severity, file, pointer, message, source}
 Exit codes: 0 no error findings, 1 error findings, 2 validator failure.
 
 Encoding discipline: the validator re-encodes only cross-file invariants and documented rules the official tools do not enforce; field catalogs stay with the official validators and schemas.
-Reader source-type tables live in one data file, `scripts/readers.json`, which `feature-matrix.md` is checked against (§10).
+Reader source-type tables live in one data file, `scripts/mpcheck/data/readers.json`, which `feature-matrix.md` is checked against (§10).
 
 ## 9. Freshness tooling
 
-- `tests/upstream-pins.json`: each pinned upstream (doc `.md` page with a content hash; `openai/codex`, `microsoft/vscode`, Copilot CLI docs, `agentplugins/agent-plugins-spec` files at a commit with a blob sha; each tool's `--help` output hash) maps to the reference sections and `readers.json` keys that depend on it.
+- `tests/upstream-pins.json`: each pinned upstream (doc `.md` page with a content hash; `openai/codex`, Copilot CLI docs, `agentplugins/agent-plugins-spec` files at a commit with a blob sha; each tool's `--help` output hash) maps to the reference sections and `readers.json` keys that depend on it.
 - `tests/check_upstream.py`: fetches current state, reports every pin whose content changed and the sections it affects; needs network, no model, no tool CLIs.
 - `.github/workflows/upstream-drift.yml`: weekly schedule plus manual dispatch; runs `check_upstream.py`; opens one issue, or updates the open one, listing changes and affected sections; does nothing when nothing changed.
 - `tests/conformance.py`: runs behavioural probes against the locally installed tools, each probe encoding one fact (for example "Codex skips a `github` source", "Codex reads `.claude-plugin/marketplace.json`", "`claude plugin validate` does not flag entry `hooks` given as a path"); a flipped expectation names the stale fact and its reference section; a missing tool yields `skipped`.
@@ -234,10 +233,10 @@ Reader source-type tables live in one data file, `scripts/readers.json`, which `
    - VS Code: `code` 1.139.1 has no plugin-marketplace command, so the spike must demonstrate a read-only observation of the workbench plugin marketplace service (for example an extension-host test run with a throwaway `--user-data-dir`) that asserts both controls; launching the app without a machine-readable result does not satisfy the criterion.
    - Package-load observability is recorded per tool; where none exists, that tool's package-load level stays `unproven` (§8).
 1. Repository skeleton, vendored schemas, `readers.json`, validator with offline levels and its tests, calibration run.
-2. References and SKILL.md, each fact backed by a provenance entry.
+2. The skill, test-first (owner, 2026-09-28): 2a makes the validator installable, builds the behavioural scenarios and scoring tools, and runs every scenario without the skill; 2b writes SKILL.md and the references against the observed failures, with every fact backed by a provenance entry, then runs the scenarios with the skill.
 3. Conformance probes and upstream drift tooling with the weekly Action.
 4. Remote and install-probe levels.
-5. Behavioural scenarios and trigger cases, baseline and with-skill.
+5. Folded into phase 2 (owner, 2026-09-28).
 6. Review: Codex cross-check, then GitHub repo creation (owner approval), PR, and listing in `briandconnelly-plugins`.
 
 ## 12. Risks
@@ -245,7 +244,6 @@ Reader source-type tables live in one data file, `scripts/readers.json`, which `
 - Upstream churn: mitigated by provenance, probes, and the weekly drift issue; residual risk is a behavioural change that does not touch any pinned file.
 - The validator becoming a stale second spec: mitigated by the encoding discipline in §8 and by probes that exercise the real tools.
 - Probe side effects: every probe uses a throwaway config directory; a probe that cannot be isolated is not written.
-- VS Code probe fragility: headless loading of the workbench may be brittle; phase 0 decides whether VS Code stays in scope.
 - Agent Plugins governance: 1.0 is published but young, with known schema defects; the reference tracks the open issues that affect validation.
 - Scope size: phases let the skill ship after phase 3 with remote and probe levels following.
 
