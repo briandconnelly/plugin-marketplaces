@@ -95,3 +95,15 @@ def test_one_manifest_missing_its_version(market):
     del data["version"]
     write(market, "plugins/alpha/plugin.json", data)
     assert local_ids(market) == ["local.version-field-missing", "local.version-field-missing"]
+
+
+def test_same_version_from_different_npm_packages_differs_in_source(market):
+    set_entry(market, CLAUDE, 1, source={"source": "npm", "package": "@a/beta", "version": "1.0.0"})
+    set_entry(market, CODEX, 1, source={"source": "npm", "package": "@b/beta", "version": "1.0.0"})
+    assert local_ids(market) == ["local.parity-source"]
+
+
+def test_github_and_url_forms_of_one_repository_are_the_same_source(market):
+    github = {"source": "github", "repo": "Example/Beta", "ref": "v1.0.0", "sha": "a" * 40}
+    set_entry(market, CLAUDE, 1, source=github)
+    assert local_ids(market) == []

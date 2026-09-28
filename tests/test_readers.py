@@ -43,3 +43,8 @@ def test_copilot_reader():
     copilot = load_readers()["copilot-cli"]
     assert copilot.catalog_paths[-1] == ".claude-plugin/marketplace.json"
     assert copilot.source_types == {"path", "github", "url"}
+
+
+def test_copilot_honours_plugin_root():
+    # docs/research/2026-09-27-copilot-pluginroot-probe.md
+    assert load_readers()["copilot-cli"].honours_plugin_root is True

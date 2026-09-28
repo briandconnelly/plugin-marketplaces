@@ -60,7 +60,7 @@
     ],
     "path_requires_dot_slash": false,
     "path_prefix_exempt_catalogs": [],
-    "honours_plugin_root": false,
+    "honours_plugin_root": true,
     "marketplace_name_pattern": null,
     "entry_name_pattern": null,
     "reads_entry_hooks": false

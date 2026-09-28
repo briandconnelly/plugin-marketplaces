@@ -32,3 +32,8 @@ def test_main_reports_and_fails(tmp_path, capsys):
     bad.write_text("One. Two.\n", encoding="utf-8")
     assert main([str(bad)]) == 1
     assert "bad.md:1" in capsys.readouterr().out
+
+
+def test_tilde_fences_are_ignored():
+    assert violations("~~~\nx = 1. Y = 2.\n~~~\nOne line.\n") == []
+    assert violations("````\n```\nx = 1. Y = 2.\n````\n") == []

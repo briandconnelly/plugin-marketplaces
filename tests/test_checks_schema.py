@@ -299,3 +299,19 @@ def test_reported_failure_with_nothing_surviving_is_inconclusive(market):
     findings, status, _ = run_claude_validate(repo_of(market), runner=run, which=lambda _: FOUND)
     assert status == Status.INCONCLUSIVE
     assert "schema.claude-validate.crashed" in ids(findings)
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        {"success": True, "manifest": None, "contents": 5},
+        {"success": True, "manifest": None, "contents": ["not-an-object"]},
+        {"success": True, "manifest": {"errors": "x", "warnings": []}, "contents": []},
+        {"success": True, "manifest": {"errors": [], "warnings": [1]}, "contents": []},
+    ],
+)
+def test_malformed_nested_report_is_inconclusive(market, report):
+    runner = fake_runner(json.dumps(report), 0)
+    findings, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
+    assert status == Status.INCONCLUSIVE
+    assert "schema.claude-validate.crashed" in ids(findings)

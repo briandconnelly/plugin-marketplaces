@@ -318,14 +318,37 @@ def pin_of(source: object, plugin_root: str | None = None) -> str | None:
     if rel is not None:
         return "path:" + posixpath.normpath(effective_path(rel, plugin_root))
     if isinstance(source, dict):
+        # Identity plus pin: the same commit or version from a different repository,
+        # subdirectory, or package is a different source.
+        locator = _locator(source)
         for key in ("sha", "sha256"):
             value = source.get(key)
             if isinstance(value, str):
-                return f"{key}:{value}"
+                return f"{locator}@{key}:{value}"
         version = source.get("version")
         if source.get("source") == "npm" and isinstance(version, str):
-            return "npm:" + version
+            return f"{locator}@npm:{version}"
     return None
+
+
+def _locator(source: dict[str, object]) -> str:
+    """A reader-neutral name for where a remote source lives.
+
+    `github` `owner/repo` and a `url` to the same GitHub repository normalise alike,
+    because a dual-catalog marketplace must use `github` for Claude and `url` for Codex.
+    """
+    kind = source.get("source")
+    if kind == "npm":
+        return f"npm:{source.get('package')}"
+    if kind == "github":
+        where = f"github.com/{source.get('repo')}"
+    else:
+        where = str(source.get("url", ""))
+        for prefix in ("https://", "http://", "ssh://", "git@"):
+            where = where.removeprefix(prefix)
+        where = where.replace("github.com:", "github.com/").removesuffix("/").removesuffix(".git")
+    path = source.get("path")
+    return where.lower() + (f"//{path}" if isinstance(path, str) and path else "")
 
 
 def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:

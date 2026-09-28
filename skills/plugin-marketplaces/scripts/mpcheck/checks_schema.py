@@ -197,6 +197,23 @@ def _claude_targets(repo: Repo) -> tuple[list[Path], list[Path]]:
     return targets, unreachable
 
 
+def _items_well_formed(report: dict[str, object]) -> bool:
+    """`contents` is a list, and every item's `errors`/`warnings` are lists of objects."""
+    contents = report.get("contents", [])
+    if not isinstance(contents, list):
+        return False
+    items = [report["manifest"] or {}, *contents]
+    return all(
+        isinstance(item, dict)
+        and all(
+            isinstance(item.get(key, []), list)
+            and all(isinstance(issue, dict) for issue in item.get(key, []))
+            for key in ("errors", "warnings")
+        )
+        for item in items
+    )
+
+
 def _directly_validated_indexes(repo: Repo, targets: list[Path]) -> set[int]:
     catalog = repo.catalogs.get(CLAUDE_CATALOG)
     if catalog is None:
@@ -258,6 +275,7 @@ def run_claude_validate(
             or not isinstance(report.get("success"), bool)
             or proc.returncode not in (0, 1)
             or report["success"] != (proc.returncode == 0)
+            or not _items_well_formed(report)
         ):
             findings.append(
                 _crashed(repo, target, f"exit {proc.returncode} with an unexpected report shape")

@@ -118,6 +118,15 @@ def _load_catalog(root: Path, rel: str, findings: list[Finding]) -> Catalog | No
     return Catalog(rel, data, entries, plugin_root if isinstance(plugin_root, str) else None)
 
 
+def _manifest_shape(root: Path, path: Path) -> Finding:
+    return Finding(
+        "schema.parse.manifest-shape",
+        Severity.ERROR,
+        _rel(root, path),
+        "a plugin manifest must be a JSON object; tools ignore or reject this one",
+    )
+
+
 def _load_plugin(root: Path, directory: Path, findings: list[Finding]) -> Plugin:
     plugin = Plugin(directory)
     for rel in MANIFEST_FILES:
@@ -126,6 +135,8 @@ def _load_plugin(root: Path, directory: Path, findings: list[Finding]) -> Plugin
             data = _load(root, path, findings)
             if isinstance(data, dict):
                 plugin.manifests[rel] = data
+            elif data is not None:
+                findings.append(_manifest_shape(root, path))
     portable = directory / "plugin.json"
     portable_rel = _rel(root, portable)
     if portable.is_symlink():
@@ -139,7 +150,9 @@ def _load_plugin(root: Path, directory: Path, findings: list[Finding]) -> Plugin
         )
     elif portable.is_file():
         data = _load(root, portable, findings)
-        if isinstance(data, dict):
+        if data is not None and not isinstance(data, dict):
+            findings.append(_manifest_shape(root, portable))
+        elif isinstance(data, dict):
             schema = data.get("$schema")
             if isinstance(schema, str) and schema.startswith(PORTABLE_SCHEMA_PREFIX):
                 plugin.manifests["plugin.json"] = data

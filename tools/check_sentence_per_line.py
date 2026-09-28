@@ -14,13 +14,17 @@ BREAK = re.compile(r"[A-Za-z0-9)\]*_\"'`][.!?] +[A-Z]")
 
 def violations(text: str) -> list[int]:
     found: list[int] = []
-    in_fence = False
+    fence = ""
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
-        if stripped.startswith("```"):
-            in_fence = not in_fence
+        marker = re.match(r"(`{3,}|~{3,})", stripped)
+        if marker and (
+            not fence or (marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence))
+        ):
+            # A fence closes only on the same character, at least as long as its opener.
+            fence = "" if fence else marker.group(1)
             continue
-        if in_fence or stripped.startswith("|"):
+        if fence or stripped.startswith("|"):
             continue
         prose = CODE_SPAN.sub("`code`", LEAD.sub("", line, count=1))
         for abbreviation in ABBREVIATIONS:

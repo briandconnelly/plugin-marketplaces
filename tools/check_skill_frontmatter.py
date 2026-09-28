@@ -54,10 +54,12 @@ class Issue:
 def _extract_frontmatter(text: str) -> tuple[str | None, int]:
     """Return (yaml_text, file_line_for_yaml_line_1) or (None, 0) if missing."""
     lines = text.splitlines()
-    if not lines or lines[0].strip() != FRONTMATTER_DELIM:
+    # Delimiters are exact, unindented lines (trailing whitespace allowed): an indented
+    # `---` belongs to YAML content, such as a block scalar, and never closes the block.
+    if not lines or lines[0].rstrip() != FRONTMATTER_DELIM:
         return None, 0
     for i in range(1, len(lines)):
-        if lines[i].strip() == FRONTMATTER_DELIM:
+        if lines[i].rstrip() == FRONTMATTER_DELIM:
             return "\n".join(lines[1:i]), 2
     return None, 0
 

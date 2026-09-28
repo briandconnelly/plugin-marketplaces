@@ -109,3 +109,15 @@ def test_symlinked_root_plugin_json(tmp_path):
     (tmp_path / "p/a/plugin.json").symlink_to(real)
     _, findings = discover(tmp_path, READERS)
     assert ids(findings) == ["local.portable-symlink"]
+
+
+def test_non_object_manifests_are_reported(tmp_path):
+    write(
+        tmp_path,
+        ".claude-plugin/marketplace.json",
+        catalog(plugins=[{"name": "a", "source": "./p/a"}]),
+    )
+    write(tmp_path, "p/a/.claude-plugin/plugin.json", [])
+    write(tmp_path, "p/a/plugin.json", "7\n")
+    _, findings = discover(tmp_path, READERS)
+    assert ids(findings) == ["schema.parse.manifest-shape", "schema.parse.manifest-shape"]
