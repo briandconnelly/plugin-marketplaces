@@ -74,3 +74,11 @@ def test_find_matches_the_exact_prompt_only(arm, tmp_path):
         find(tmp_path, "nothing like this")
     with pytest.raises(LookupError):
         find_containing(tmp_path, "You are working")
+
+
+def test_find_skips_files_that_are_not_transcripts(arm, tmp_path):
+    # the task directory also holds background shell output, which is not JSONL
+    (tmp_path / "b3ra2fmaq.output").write_text("a1.output 301774 {partial\n", encoding="utf-8")
+    (tmp_path / "empty.output").write_text("", encoding="utf-8")
+    assert find(tmp_path, "You are working in `/w`.") == arm
+    assert find_containing(tmp_path, "/w") == arm

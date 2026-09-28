@@ -86,11 +86,20 @@ def load(path: Path) -> Transcript:
     )
 
 
+def _transcripts(tasks: Path) -> list[tuple[Path, Transcript]]:
+    """Every subagent transcript in `tasks`, as (path, transcript); other files are skipped."""
+    found = []
+    for path in sorted(tasks.glob("*.output")):
+        try:
+            found.append((path, load(path)))
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue  # background shell output shares the directory
+    return found
+
+
 def find(tasks: Path, prompt: str) -> Path:
     """The one transcript in `tasks` whose first user message is `prompt` (outer whitespace aside)."""
-    matches = [
-        p for p in sorted(tasks.glob("*.output")) if load(p).prompt.strip() == prompt.strip()
-    ]
+    matches = [p for p, t in _transcripts(tasks) if t.prompt.strip() == prompt.strip()]
     if len(matches) != 1:
         raise LookupError(f"{len(matches)} transcripts in {tasks} match the prompt")
     return matches[0]
@@ -98,7 +107,7 @@ def find(tasks: Path, prompt: str) -> Path:
 
 def find_containing(tasks: Path, needle: str) -> Path:
     """The one transcript in `tasks` whose first user message contains `needle`."""
-    matches = [p for p in sorted(tasks.glob("*.output")) if needle in load(p).prompt]
+    matches = [p for p, t in _transcripts(tasks) if needle in t.prompt]
     if len(matches) != 1:
         raise LookupError(f"{len(matches)} transcripts in {tasks} mention {needle}")
     return matches[0]
