@@ -1,12 +1,13 @@
 # plugin-marketplaces skill — design
 
 Date: 2026-09-27
-Status: draft for review
+Status: approved by owner 2026-09-27
 Repository: `briandconnelly/plugin-marketplaces` (local only until the owner approves creating the GitHub repo)
 
 ## 1. Purpose
 
-A skill that helps any maintainer create, audit, maintain, and release high-quality plugin marketplaces, and package the plugins those marketplaces list.
+A skill that helps any maintainer create, audit, maintain, and release high-quality user-hosted plugin marketplaces, and package the plugins those marketplaces list.
+A user-hosted plugin marketplace is a catalog file that its maintainer writes and hosts, typically in a git repository, and that users register with their tool; it is distinct from a vendor-hosted registry such as Kimi Code's, Cline's, or Gemini CLI's, where the vendor owns the catalog.
 It teaches format-neutral best practices, and it carries a checked understanding of each covered tool's catalog and plugin formats.
 It ships a validator, and it ships maintainer tooling that keeps its own facts current as the covered tools change several times a week.
 
@@ -28,6 +29,7 @@ Success means:
 | Scripts in v1 | Validator only; no bump, sync, or scaffold helpers | owner, Q6 |
 | Freshness automation | Provenance on every fact, conformance probes, upstream drift detector, weekly GitHub Action that opens or updates an issue | owner, Q7 |
 | Repository | Its own repo, shipped as a plugin and acting as its own marketplace | owner, Q8 |
+| Terminology | "User-hosted plugin marketplace" as the defining term, distinguishing author-controlled catalogs from vendor-hosted registries | owner, 2026-09-27 |
 | Coverage rule | A tool is covered only if a runnable probe can check its behaviour; uncheckable tools are excluded, not listed as unverified | owner, 2026-09-27 |
 
 ## 3. Scope
@@ -47,7 +49,7 @@ A tool whose phase-0 gate fails is removed from scope before any reference text 
 ### 3.2 Excluded, and why
 
 - Cursor, OpenHands, OpenClaw, Factory Droid: they read Claude-dialect catalogs, but no probe can check them here (coverage rule).
-- Kimi Code, Cline, Gemini CLI: hosted, non-interoperable registries rather than author-written catalog files.
+- Kimi Code, Cline, Gemini CLI: vendor-hosted registries, not user-hosted marketplaces.
 - Kiro, Hermes, OpenCode, Amp, Goose, Windsurf: no author-written catalog file.
 - Writing plugin components (skills, hooks, agents, commands, MCP or LSP servers): defer to `plugin-dev`, `skill-creator`, and `agent-friendly-mcp`.
 - Managed or enterprise policy (`strictKnownMarketplaces`, cloud-managed Codex config), and vendor directory submission portals: noted as future work.
@@ -114,11 +116,11 @@ Maintainer tooling (`tests/`) is not shipped in the plugin.
 
 ## 6. SKILL.md
 
-Frontmatter conforms to the agentskills.io spec; the description names the triggers (creating, auditing, or releasing a marketplace or catalog; adding, pinning, or renaming a plugin entry; packaging a plugin for more than one tool; `marketplace.json`, `plugin.json`, `.claude-plugin`, `.agents/plugins`, `.codex-plugin`, `.github/plugin`, `agent-plugins.org`) and the non-triggers (writing hooks, agents, or MCP servers; installing a plugin for personal use).
+Frontmatter conforms to the agentskills.io spec; the description leads with the term "user-hosted plugin marketplace" and names the triggers (creating, auditing, or releasing a marketplace or catalog; adding, pinning, or renaming a plugin entry; packaging a plugin for more than one tool; `marketplace.json`, `plugin.json`, `.claude-plugin`, `.agents/plugins`, `.codex-plugin`, `.github/plugin`, `agent-plugins.org`) and the non-triggers (writing hooks, agents, or MCP servers; installing a plugin for personal use).
 
 Body sections:
 
-1. Core model: a catalog lists entries; an entry points at a package through a source; a version is the cache key that decides whether users receive a change.
+1. Core model: a user-hosted marketplace is a catalog the maintainer controls; a catalog lists entries; an entry points at a package through a source; a version is the cache key that decides whether users receive a change.
 2. Workflows, each a short numbered list with links: create a marketplace, add a plugin, release a plugin version, audit a marketplace, port or migrate a plugin between formats.
 3. Rules, the single normative home for every binding rule in the skill, each worded so a reviewer can check it:
    - R1 Declare the target readers in `marketplace-policy.json` before choosing sources or layouts.
@@ -247,4 +249,4 @@ Reader source-type tables live in one data file, `scripts/readers.json`, which `
 
 ## 13. Open questions
 
-- The skill and repo name: `plugin-marketplaces` is proposed.
+- None; the skill and repo name `plugin-marketplaces` is settled, with "user-hosted plugin marketplace" as the defining term (owner, 2026-09-27).
