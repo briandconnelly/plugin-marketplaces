@@ -17,11 +17,17 @@ def violations(text: str) -> list[int]:
     fence = ""
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
-        marker = re.match(r"(`{3,}|~{3,})", stripped)
-        if marker and (
-            not fence or (marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence))
-        ):
-            # A fence closes only on the same character, at least as long as its opener.
+        marker = re.match(r"(`{3,}|~{3,})(.*)$", stripped)
+        # A fence closes only on the same character, at least as long as its opener, with
+        # nothing but whitespace after it; a line like ```python inside a fence is content.
+        closes = (
+            marker is not None
+            and bool(fence)
+            and marker.group(1)[0] == fence[0]
+            and len(marker.group(1)) >= len(fence)
+            and not marker.group(2).strip()
+        )
+        if marker and (not fence or closes):
             fence = "" if fence else marker.group(1)
             continue
         if fence or stripped.startswith("|"):

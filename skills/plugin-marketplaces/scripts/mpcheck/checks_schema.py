@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import shutil
 import subprocess
@@ -51,7 +52,18 @@ def _version_of(schema_url: object) -> str | None:
 
 
 def _pointer(path: Sequence[object]) -> str:
-    return "/" + "/".join(str(part) for part in path) if path else ""
+    tokens = (str(part).replace("~", "~0").replace("/", "~1") for part in path)
+    return "/" + "/".join(tokens) if path else ""
+
+
+def _escapes(cwd: str) -> bool:
+    """Whether an MCP cwd leaves the plugin root or data directory (spec §4.1 containment)."""
+    for prefix in ("${PLUGIN_ROOT}", "${PLUGIN_DATA}"):
+        if cwd == prefix or cwd.startswith(prefix + "/"):
+            cwd = "./" + cwd[len(prefix) :].lstrip("/")
+            break
+    normalised = posixpath.normpath(cwd)
+    return normalised == ".." or normalised.startswith("../") or normalised.startswith("/")
 
 
 def _check_mcp(directory: Path, prefix: str, version: str, counts: PortableCounts) -> list[Finding]:
@@ -97,6 +109,19 @@ def _check_mcp(directory: Path, prefix: str, version: str, counts: PortableCount
     findings: list[Finding] = []
     for name, server in servers.items():
         counts.servers += 1
+        cwd = server.get("cwd") if isinstance(server, dict) else None
+        if isinstance(cwd, str) and _escapes(cwd):
+            findings.append(
+                Finding(
+                    "schema.portable.mcp-server",
+                    Severity.ERROR,
+                    rel,
+                    f"server {name!r} skipped by conforming clients: cwd {cwd!r} resolves "
+                    "outside its root",
+                    pointer=_pointer(["mcpServers", name, "cwd"]),
+                    source=PORTABLE_REF,
+                )
+            )
         for error in server_validator.iter_errors(server):
             findings.append(
                 Finding(

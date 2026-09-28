@@ -55,3 +55,18 @@ def test_plugin_root_bare_name_still_reaches_manifest_checks(market):
     manifest["name"] = "alpha-renamed"
     write(market, "plugins/alpha/.claude-plugin/plugin.json", manifest)
     assert local_ids(market) == ["local.name-mismatch"]
+
+
+def test_nameless_codex_manifest_falls_back_to_the_directory_name(market):
+    # Codex's legacy parser names a manifest without `name` after its directory.
+    write(market, "plugins/gamma-dir/.codex-plugin/plugin.json", {"version": "1.0.0"})
+    for catalog in (CLAUDE, CODEX):
+        data = read(market, catalog)
+        source = (
+            "./plugins/gamma-dir"
+            if catalog == CLAUDE
+            else {"source": "local", "path": "./plugins/gamma-dir"}
+        )
+        data["plugins"].append({"name": "gamma", "source": source})
+        write(market, catalog, data)
+    assert local_ids(market) == ["local.name-mismatch", "local.name-mismatch"]

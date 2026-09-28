@@ -1,5 +1,6 @@
 import os
 
+import pytest
 from helpers import local_ids, read, remote, write
 
 CLAUDE = ".claude-plugin/marketplace.json"
@@ -135,3 +136,19 @@ def test_git_subdir_rejected_for_copilot(market):
         },
     )
     assert "local.source-type" in local_ids(market)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"source": "github", "sha": "a" * 40},
+        {"source": "url", "sha": "a" * 40},
+        {"source": "git-subdir", "url": "https://github.com/o/r.git", "sha": "a" * 40},
+        {"source": "npm", "version": "1.0.0"},
+    ],
+)
+def test_source_without_its_locator_is_invalid(market, source):
+    (market / CODEX).unlink()
+    write(market, "marketplace-policy.json", {"readers": ["claude-code"]})
+    set_entry(market, CLAUDE, 1, source=source)
+    assert "local.source-invalid" in local_ids(market)

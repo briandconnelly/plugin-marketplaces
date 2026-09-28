@@ -315,3 +315,26 @@ def test_malformed_nested_report_is_inconclusive(market, report):
     findings, status, _ = run_claude_validate(repo_of(market), runner=runner, which=lambda _: FOUND)
     assert status == Status.INCONCLUSIVE
     assert "schema.claude-validate.crashed" in ids(findings)
+
+
+def test_server_names_are_escaped_in_pointers(market):
+    servers = {"a/b~c": {"command": "uvx"}}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": servers})
+    assert [f.pointer for f in portable(market)] == ["/mcpServers/a~1b~0c"]
+
+
+@pytest.mark.parametrize(
+    "cwd", ["./../outside", "${PLUGIN_ROOT}/../outside", "${PLUGIN_DATA}/../x"]
+)
+def test_mcp_cwd_must_stay_contained(market, cwd):
+    server = {"type": "stdio", "command": "uvx", "cwd": cwd}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
+    assert [(f.check, f.pointer) for f in portable(market)] == [
+        ("schema.portable.mcp-server", "/mcpServers/s/cwd")
+    ]
+
+
+def test_contained_mcp_cwd_passes(market):
+    server = {"type": "stdio", "command": "uvx", "cwd": "${PLUGIN_ROOT}/tools"}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
+    assert portable(market) == []

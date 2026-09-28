@@ -88,6 +88,46 @@ def check_source_types(repo: Repo, readers: dict[str, Reader], policy: Policy) -
     return findings
 
 
+REQUIRED_FIELDS = {
+    "github": ("repo",),
+    "url": ("url",),
+    "git-subdir": ("url", "path"),
+    "npm": ("package",),
+    "archive": ("url",),
+    "command": ("command",),
+    "pip": ("package",),
+}
+
+
+def check_source_fields(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    """An accepted source variant still needs its locator; readers reject or skip one without."""
+    findings: list[Finding] = []
+    for catalog in active_catalogs(repo, policy):
+        for index, entry in catalog.entries:
+            source = entry["source"]
+            required = REQUIRED_FIELDS.get(source_type(source), ())
+            if not required or not isinstance(source, dict):
+                continue
+            missing = [
+                key
+                for key in required
+                if not (isinstance(value := source.get(key), str) and value.strip())
+            ]
+            if missing:
+                findings.append(
+                    Finding(
+                        "local.source-invalid",
+                        Severity.ERROR,
+                        catalog.relpath,
+                        f"{source_type(source)} source for {entry['name']!r} needs a non-empty "
+                        f"{', '.join(repr(k) for k in missing)}",
+                        rule="R2",
+                        pointer=f"/plugins/{index}/source",
+                    )
+                )
+    return findings
+
+
 def check_local_paths(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
     findings: list[Finding] = []
     for catalog in active_catalogs(repo, policy):
@@ -231,6 +271,9 @@ def check_names(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[
             prefix = plugin.directory.relative_to(repo.root).as_posix()
             for manifest_rel, manifest in plugin.manifests.items():
                 manifest_name = manifest.get("name")
+                if manifest_rel == ".codex-plugin/plugin.json" and not manifest_name:
+                    # Codex's legacy parser names a nameless manifest after its directory.
+                    manifest_name = plugin.directory.name
                 if isinstance(manifest_name, str) and manifest_name != entry_name:
                     findings.append(
                         Finding(
@@ -599,6 +642,7 @@ LOCAL_CHECKS: list[Check] = [
     check_reader_coverage,
     check_unread_catalogs,
     check_source_types,
+    check_source_fields,
     check_local_paths,
     check_names,
     check_versions,
