@@ -2,7 +2,7 @@
 
 Date: 2026-09-28.
 Arms: fresh `general-purpose` subagents with no access to this repository or the skill, one run per scenario, dispatched from a Claude Code session with claude 2.1.283, codex-cli 0.157.1, and copilot 1.0.88 installed.
-Per-run evidence is in `tests/runs/2026-09-28-sN-baseline.md`; the table below was generated from those records and the arms' transcripts.
+Per-run evidence is in `tests/runs/2026-09-28-sN-baseline.md` for scored runs and `tests/runs/2026-09-28-sN-baseline-discarded.md` for discarded ones, which are kept, unscored, so the observations drawn from them can be audited; the table below was generated from those records and the arms' transcripts.
 
 ## Results
 

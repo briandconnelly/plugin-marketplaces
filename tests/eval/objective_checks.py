@@ -75,7 +75,12 @@ def codex(repo: Path) -> dict[str, Any]:
     try:
         available = json.loads(listed.stdout).get("available", [])
     except json.JSONDecodeError:
-        return {"ran": True, "added": True, "marketplace": name, "error": listed.stderr[-500:]}
+        return {
+            "ran": True,
+            "added": True,
+            "marketplace": name,
+            "error": (listed.stdout + listed.stderr)[-500:],
+        }
     names = sorted(p["name"] for p in available if p.get("marketplaceName") == name)
     return {"ran": True, "added": True, "marketplace": name, "listed": names}
 
@@ -103,7 +108,7 @@ def copilot(repo: Path) -> dict[str, Any]:
             "ran": True,
             "added": True,
             "marketplace": match.group(1),
-            "error": browsed.stderr[-500:],
+            "error": (browsed.stdout + browsed.stderr)[-500:],
         }
     return {"ran": True, "added": True, "marketplace": match.group(1), "listed": names}
 
