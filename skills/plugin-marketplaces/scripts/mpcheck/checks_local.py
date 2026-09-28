@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import posixpath
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from mpcheck.discover import Catalog, Repo
 from mpcheck.model import Finding, Severity
 from mpcheck.policy import POLICY_FILE, Policy
 from mpcheck.readers import (
+    GIT_SOURCE_TYPES,
     Reader,
     effective_path,
     is_bare,
@@ -395,6 +397,181 @@ def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list
     return findings
 
 
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+
+EXACT_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
+
+
+def _pin_finding(check: str, catalog: Catalog, index: int, message: str) -> Finding:
+    return Finding(
+        check,
+        Severity.ERROR,
+        catalog.relpath,
+        message,
+        rule="R4",
+        pointer=f"/plugins/{index}/source",
+    )
+
+
+def check_pins(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    used_channels: set[tuple[str, str]] = set()
+    for catalog in active_catalogs(repo, policy):
+        for index, entry in catalog.entries:
+            source = entry["source"]
+            kind = source_type(source)
+            name = entry["name"]
+            if not isinstance(source, dict):
+                continue
+            if kind in GIT_SOURCE_TYPES:
+                sha = source.get("sha")
+                channel = policy.channel(str(name), source.get("ref")) if sha is None else None
+                if channel is not None:
+                    used_channels.add((channel.plugin, channel.ref))
+                    findings.append(
+                        Finding(
+                            "local.pin-channel",
+                            Severity.INFO,
+                            catalog.relpath,
+                            f"{name!r} tracks the declared channel ref {channel.ref!r}; users "
+                            f"receive every push without a reviewed pin move ({channel.reason})",
+                            rule="R4",
+                            pointer=f"/plugins/{index}/source",
+                        )
+                    )
+                elif sha is None:
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"git source for {name!r} has no 'sha'; a moving ref ships whatever is pushed next",
+                        )
+                    )
+                elif not (isinstance(sha, str) and SHA_RE.fullmatch(sha)):
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-malformed",
+                            catalog,
+                            index,
+                            f"'sha' for {name!r} must be a full 40-character lowercase commit SHA",
+                        )
+                    )
+            elif kind == "archive":
+                digest = source.get("sha256")
+                if digest is None:
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"archive source for {name!r} has no 'sha256'",
+                        )
+                    )
+                elif not (isinstance(digest, str) and SHA256_RE.fullmatch(digest)):
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-malformed",
+                            catalog,
+                            index,
+                            f"'sha256' for {name!r} must be 64 hex characters",
+                        )
+                    )
+            elif kind == "npm":
+                version = source.get("version")
+                if not (isinstance(version, str) and EXACT_SEMVER_RE.fullmatch(version)):
+                    findings.append(
+                        _pin_finding(
+                            "local.pin-missing",
+                            catalog,
+                            index,
+                            f"npm source for {name!r} needs an exact 'version', not a range or dist-tag",
+                        )
+                    )
+            elif kind == "pip":
+                findings.append(
+                    Finding(
+                        "local.pin-unverified",
+                        Severity.WARNING,
+                        catalog.relpath,
+                        f"no pin rule for pip sources has been verified; review {name!r} by hand",
+                        rule="R4",
+                        pointer=f"/plugins/{index}/source",
+                    )
+                )
+            elif kind == "command":
+                findings.append(
+                    _pin_finding(
+                        "local.pin-unpinnable",
+                        catalog,
+                        index,
+                        f"command source for {name!r} cannot be pinned and must not appear in a "
+                        "published catalog",
+                    )
+                )
+    for channel in policy.channels:
+        if (channel.plugin, channel.ref) not in used_channels:
+            findings.append(
+                Finding(
+                    "policy.unused-channel",
+                    Severity.WARNING,
+                    POLICY_FILE,
+                    f"channel {channel.ref!r} for {channel.plugin!r} matches no unpinned git "
+                    "source; remove it so it cannot excuse a future unpinned entry",
+                    rule="R4",
+                )
+            )
+    return findings
+
+
+def check_entry_hooks(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    for catalog in active_catalogs(repo, policy):
+        hook_readers = [
+            r for r in _readers_of(repo, readers, policy, catalog) if r.reads_entry_hooks
+        ]
+        if not hook_readers:
+            continue
+        for index, entry in catalog.entries:
+            if isinstance(entry.get("hooks"), (str, list)):
+                findings.append(
+                    Finding(
+                        "local.entry-hooks-path",
+                        Severity.ERROR,
+                        catalog.relpath,
+                        "entry 'hooks' must be an inline object; a path or array passes "
+                        "`claude plugin validate` but the hooks never run",
+                        pointer=f"/plugins/{index}/hooks",
+                        source=hook_readers[0].reference,
+                    )
+                )
+    return findings
+
+
+def check_portable_mcp(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    for plugin in repo.plugins.values():
+        directory = plugin.directory
+        if (
+            "plugin.json" in plugin.manifests
+            and (directory / ".mcp.json").is_file()
+            and not (directory / "mcp.json").is_file()
+        ):
+            findings.append(
+                Finding(
+                    "local.portable-mcp-missing",
+                    Severity.WARNING,
+                    (directory / ".mcp.json").relative_to(repo.root).as_posix(),
+                    "portable readers load MCP servers only from mcp.json, with a transport "
+                    "'type' on each server; these servers are invisible to them",
+                    source="references/agent-plugins.md",
+                )
+            )
+    return findings
+
+
 LOCAL_CHECKS: list[Check] = [
     check_reader_coverage,
     check_unread_catalogs,
@@ -403,4 +580,7 @@ LOCAL_CHECKS: list[Check] = [
     check_names,
     check_versions,
     check_parity,
+    check_pins,
+    check_entry_hooks,
+    check_portable_mcp,
 ]
