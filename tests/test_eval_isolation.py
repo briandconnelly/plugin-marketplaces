@@ -20,17 +20,18 @@ EXPECTED = {
     # plan-2b review (as are s3-rep2 #14/#19 and s4 #10)
     "s1-baseline-discarded": {
         "outside-read": [7, 10, 11, 15, 17, 21, 22, 23, 24],
-        "outside-write": [15, 17, 21, 22, 23],
+        "outside-write": [7, 15, 17, 21, 22, 23],
         "cli-env": [15, 17, 22, 23, 24],
     },
     "s2-baseline": {},
     # listed the shared parent (#0) and copied itself to ../s3-copy-for-test (#7): plan 2a's
     # checker missed both, so this scored run was not isolated
     "s3-baseline": {"outside-read": [0], "outside-write": [7]},
-    # `git init --bare ../s3-fake-remote.git` after a heredoc (#8), then `cd $RUN` (#9)
+    # `git init --bare ../s3-fake-remote.git` after a heredoc (#8), then `cd $RUN` and a bare
+    # `rm -rf s3-fake-remote.git` (#9, a write since bare operands resolve against the cwd)
     "s3-rep2-baseline-discarded": {
         "outside-read": [1, 9],
-        "outside-write": [8],
+        "outside-write": [8, 9],
     },
     # every CLI call sourced .tool-homes/env.sh, so no cli-env flag; #34 and #44 are prompt
     # text ("/review") read as paths; #54 runs a script the transcript never shows
@@ -212,3 +213,10 @@ def test_local_only_subcommands_are_allowed_and_wrapped_commands_checked():
     assert kinds(W + env + "codex sandbox -- codex plugin list") == []
     assert kinds(W + env + "codex sandbox -- copilot -p hi") == ["cli-prompt"]
     assert kinds(W + env + "codex app-server") == ["cli-prompt"]
+
+
+def test_bare_write_operands_resolve_against_the_working_directory():
+    # Copilot review of PR #3: a bare name written outside WORKDIR must flag
+    assert kinds("touch stray") == ["outside-write"]
+    assert kinds("cp /R/s2-r1/repo/README.md stray") == ["outside-write"]
+    assert kinds("cd /R/s2-r1/repo && touch stray && cp README.md copy") == []

@@ -480,6 +480,18 @@ class Checker:
             or (name == "sed" and any(a.startswith("-i") for a in operands))
             or (name == "perl" and any(re.fullmatch(r"-\w*i\w*", a) for a in operands))
         )
+        if writes_all or name in LAST_OPERAND_WRITES:
+            # a bare file name is a path here: resolve it against the working directory
+            files = [w for w in operands if not w.startswith(("-", "+"))]
+            if name in ("chmod", "chown") and files:
+                files = files[1:]  # the mode or owner
+            resolved = []
+            for w in files:
+                p = self.resolve(w, shell)
+                if p is None and "$" not in w and "=" not in w and not w.isdigit():
+                    p = _norm(str(PurePosixPath(shell.cwd) / w))
+                if p is not None:
+                    resolved.append(p)
         for n, p in enumerate(resolved):
             if writes_all or (name in LAST_OPERAND_WRITES and n == len(resolved) - 1):
                 self.check_write(p, name)
