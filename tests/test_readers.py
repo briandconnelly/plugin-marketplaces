@@ -37,3 +37,9 @@ def test_source_path():
     assert source_path("./a") == "./a"
     assert source_path({"source": "local", "path": "./b"}) == "./b"
     assert source_path({"source": "url", "url": "https://x"}) is None
+
+
+def test_copilot_reader():
+    copilot = load_readers()["copilot-cli"]
+    assert copilot.catalog_paths[-1] == ".claude-plugin/marketplace.json"
+    assert copilot.source_types == {"path", "github", "url"}

@@ -119,3 +119,19 @@ def test_codex_exempts_cursor_catalog_from_dot_slash(market):
         },
     )
     assert local_ids(market) == []
+
+
+def test_git_subdir_rejected_for_copilot(market):
+    write(market, "marketplace-policy.json", {"readers": ["claude-code", "codex", "copilot-cli"]})
+    set_entry(
+        market,
+        CLAUDE,
+        1,
+        source={
+            "source": "git-subdir",
+            "url": "https://github.com/o/r.git",
+            "path": "p",
+            "sha": "a" * 40,
+        },
+    )
+    assert "local.source-type" in local_ids(market)
