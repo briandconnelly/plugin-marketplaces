@@ -1,7 +1,7 @@
 {
   "name": "linter",
   "version": "1.0.0",
-  "description": "Lint code",
+  "description": "Run the team's linters on changed files",
   "author": {
     "name": "Acme"
   }

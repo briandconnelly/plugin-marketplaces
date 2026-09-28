@@ -1,7 +1,7 @@
 {
   "name": "deploy",
   "version": "1.9.0",
-  "description": "Use deploy",
+  "description": "Deploy a service to the staging environment",
   "author": {
     "name": "Acme"
   }

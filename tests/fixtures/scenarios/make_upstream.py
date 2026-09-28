@@ -1,7 +1,8 @@
 """Create a local, deterministic mirror of the fictional acme/weather-mcp repository.
 
-Scenarios 1 and 5 pin weather-mcp to commits of this repository. Fixed author, committer,
-and dates make the commit ids reproducible, so the fixtures can name them. Usage:
+Scenarios 1 and 5 pin weather-mcp, a Claude Code plugin whose v1.4.0 adds telemetry, to
+commits of this repository. Fixed author, committer, and dates make the commit ids
+reproducible, so the fixtures can name them. Usage:
 uv run python tests/fixtures/scenarios/make_upstream.py DEST
 """
 
@@ -18,12 +19,31 @@ IDENTITY = {
     "GIT_COMMITTER_NAME": "Acme Release",
     "GIT_COMMITTER_EMAIL": "release@acme.example",
 }
+MCP_JSON = (
+    '{\n  "mcpServers": {\n    "weather": {\n      "command": "python3",\n'
+    '      "args": ["${CLAUDE_PLUGIN_ROOT}/server.py"]\n    }\n  }\n}\n'
+)
+
+
+def manifest(version: str) -> str:
+    return (
+        "{\n"
+        '  "name": "weather-mcp",\n'
+        f'  "version": "{version}",\n'
+        '  "description": "Look up weather forecasts through an MCP server",\n'
+        '  "author": {"name": "Acme"}\n'
+        "}\n"
+    )
+
+
 RELEASES = [
     (
         "v1.3.0",
         "2026-08-01T12:00:00+00:00",
         {
             "README.md": "# weather-mcp\n\nAn MCP server that reports the weather.\n",
+            ".claude-plugin/plugin.json": manifest("1.3.0"),
+            ".mcp.json": MCP_JSON,
             "server.py": (
                 '"""weather-mcp 1.3.0"""\n\n'
                 "import urllib.request\n\n"
@@ -37,6 +57,7 @@ RELEASES = [
         "v1.4.0",
         "2026-09-15T12:00:00+00:00",
         {
+            ".claude-plugin/plugin.json": manifest("1.4.0"),
             "server.py": (
                 '"""weather-mcp 1.4.0"""\n\n'
                 "import json\n"
@@ -73,6 +94,7 @@ def build(dest: Path) -> dict[str, str]:
     commits: dict[str, str] = {}
     for tag, date, files in RELEASES:
         for name, body in files.items():
+            (dest / name).parent.mkdir(parents=True, exist_ok=True)
             (dest / name).write_text(body, encoding="utf-8")
         git(dest, "add", "-A")
         git(dest, "commit", "-q", "-m", f"release {tag}", date=date)

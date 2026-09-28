@@ -2,8 +2,9 @@
 
 Each tool runs against a throwaway configuration directory (never the scorer's own):
 `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, and `COPILOT_HOME`/`COPILOT_CACHE_HOME` isolate the
-three CLIs (verified in docs/research/2026-09-27-phase0-probes.md and by probes on
-2026-09-28). A tool that is not installed reports `"ran": false`, never a pass.
+three CLIs' plugin configuration (docs/research/2026-09-27-phase0-probes.md, probes on
+2026-09-28), not their sign-in, so this script never sends a prompt to a model. A tool
+that is not installed reports `"ran": false`, never a pass.
 
 Usage: uv run python tests/eval/objective_checks.py REPO
 """

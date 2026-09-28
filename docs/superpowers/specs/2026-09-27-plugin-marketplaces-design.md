@@ -233,7 +233,7 @@ Reader source-type tables live in one data file, `scripts/mpcheck/data/readers.j
    - VS Code: `code` 1.139.1 has no plugin-marketplace command, so the spike must demonstrate a read-only observation of the workbench plugin marketplace service (for example an extension-host test run with a throwaway `--user-data-dir`) that asserts both controls; launching the app without a machine-readable result does not satisfy the criterion.
    - Package-load observability is recorded per tool; where none exists, that tool's package-load level stays `unproven` (§8).
 1. Repository skeleton, vendored schemas, `readers.json`, validator with offline levels and its tests, calibration run.
-2. The skill, test-first (owner, 2026-09-28): 2a makes the validator installable, builds the behavioural scenarios and scoring tools, and runs every scenario without the skill; 2b writes SKILL.md and the references against the observed failures, with every fact backed by a provenance entry, then runs the scenarios with the skill.
+2. The skill, test-first (owner, 2026-09-28): 2a makes the validator installable, builds the behavioural scenarios and scoring tools, and runs every scenario without the skill; 2b repairs the evaluation (isolation checker, fixtures, criteria, arm preamble, cost outcomes) and reruns every scenario without the skill, three repetitions each (owner, 2026-09-28); 2c writes SKILL.md and the references against the rerun failures, with every fact backed by a provenance entry, dogfoods the repository as its own marketplace, then runs the scenarios with the skill.
 3. Conformance probes and upstream drift tooling with the weekly Action.
 4. Remote and install-probe levels.
 5. Folded into phase 2 (owner, 2026-09-28).

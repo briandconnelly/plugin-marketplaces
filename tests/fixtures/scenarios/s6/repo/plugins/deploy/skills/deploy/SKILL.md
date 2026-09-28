@@ -1,8 +1,8 @@
 ---
 name: deploy
-description: Use when you want to use deploy.
+description: Use when you want to deploy a service to the staging environment.
 ---
 
 # deploy
 
-Use deploy.
+Deploy a service to the staging environment.

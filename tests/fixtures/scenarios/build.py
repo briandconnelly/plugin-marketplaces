@@ -13,14 +13,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SHA_A = (
-    "d4e6332dbbee7a28c282ac5210f02db086084d3c"  # weather-mcp v1.3.0 in the make_upstream.py mirror
+    "bdee23e46e072243455f1ba83ce9d8e2d7584e0a"  # weather-mcp v1.3.0 in the make_upstream.py mirror
 )
 SHA_B = (
-    "a64ff2993afcb34532f9971922275f68fee1046d"  # weather-mcp v1.4.0 in the make_upstream.py mirror
+    "cb5ce7cbae4484846b11927074c03a273f223d83"  # weather-mcp v1.4.0 in the make_upstream.py mirror
 )
 SHA_NOTES = "3add7b9612102f2a7dbe4ed4fe886e07e847c24d"
 WEATHER = "https://github.com/acme/weather-mcp.git"
 AVAILABLE = {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}
+AP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 
 
 def text(path: Path, body: str) -> None:
@@ -32,24 +33,28 @@ def js(path: Path, data: object) -> None:
     text(path, json.dumps(data, indent=2) + "\n")
 
 
-def skill(repo: Path, plugin_dir: str, name: str, what: str) -> None:
+def skill(repo: Path, plugin_dir: str, name: str, what: str, body: str | None = None) -> None:
     text(
         repo / plugin_dir / "skills" / name / "SKILL.md",
-        f"---\nname: {name}\ndescription: Use when you want to {what}.\n---\n\n# {name}\n\n{what.capitalize()}.\n",
+        f"---\nname: {name}\ndescription: Use when you want to {what}.\n---\n\n# {name}\n\n"
+        + (body if body is not None else f"{what.capitalize()}.\n"),
     )
 
 
-def plugin(repo: Path, plugin_dir: str, name: str, version: str, what: str) -> None:
+def plugin(
+    repo: Path, plugin_dir: str, name: str, version: str, what: str, body: str | None = None
+) -> None:
     js(
         repo / plugin_dir / ".claude-plugin" / "plugin.json",
         {
             "name": name,
             "version": version,
-            "description": what.capitalize(),
+            # first letter only: str.capitalize() would lowercase "Markdown" and "Python"
+            "description": what[:1].upper() + what[1:],
             "author": {"name": "Acme"},
         },
     )
-    skill(repo, plugin_dir, name, what)
+    skill(repo, plugin_dir, name, what, body)
 
 
 def claude_catalog(repo: Path, entries: list[dict]) -> None:
@@ -108,6 +113,15 @@ def s2(repo: Path) -> None:
         {"name": "codex-helper", "version": "1.0.0", "description": "Wrap a Codex app integration"},
     )
     skill(repo, "plugins/codex-helper", "codex-helper", "use the Codex app integration")
+    js(
+        repo / "plugins/lint-kit/plugin.json",
+        {
+            "$schema": AP_SCHEMA,
+            "name": "lint-kit",
+            "version": "1.1.0",
+            "description": "Run the team's linters",
+        },
+    )
     claude_catalog(
         repo,
         [
@@ -209,6 +223,8 @@ def s4(repo: Path) -> None:
         },
     )
     text(repo / "server/run.sh", "#!/bin/sh\nexec python3 -m review_server\n")
+    for script in ("scripts/start.sh", "server/run.sh"):
+        (repo / script).chmod(0o755)
 
 
 def s5(repo: Path) -> None:
@@ -246,20 +262,39 @@ def s5(repo: Path) -> None:
     )
 
 
+OK_TOOLS_BODY = (
+    "1. Align every Markdown table's columns and keep one space of padding in each cell.\n"
+    "2. Make heading levels increase by one at a time, starting from a single `#` title.\n"
+    "3. Leave code blocks and front matter untouched.\n"
+    "4. Report each file you changed and what changed in it.\n"
+)
+
+
 def s6(repo: Path) -> None:
     text(repo / "README.md", "# acme-tools marketplace\n\nFor Claude Code and Codex users.\n")
-    for name, version in [
-        ("ok-tools", "1.0.0"),
-        ("fmt", "1.0.0"),
-        ("deploy", "1.9.0"),
-        ("guard", "1.0.0"),
+    for name, version, what in [
+        ("ok-tools", "1.0.0", "format Markdown tables and fix heading levels"),
+        ("fmt", "1.0.0", "format Python and TypeScript files in the team's style"),
+        ("deploy", "1.9.0", "deploy a service to the staging environment"),
+        ("guard", "1.0.0", "block risky shell commands before the agent runs them"),
     ]:
-        plugin(repo, f"plugins/{name}", name, version, f"use {name}")
-    plugin(repo, "plugins/lint", "linter", "1.0.0", "lint code")
+        plugin(
+            repo,
+            f"plugins/{name}",
+            name,
+            version,
+            what,
+            OK_TOOLS_BODY if name == "ok-tools" else None,
+        )
+    plugin(repo, "plugins/lint", "linter", "1.0.0", "run the team's linters on changed files")
     claude_catalog(
         repo,
         [
-            {"name": "ok-tools", "source": "./plugins/ok-tools", "description": "ok"},
+            {
+                "name": "ok-tools",
+                "source": "./plugins/ok-tools",
+                "description": "Format Markdown tables and fix heading levels",
+            },
             {
                 "name": "notes",
                 "source": {
@@ -268,15 +303,23 @@ def s6(repo: Path) -> None:
                     "ref": "v2.0.0",
                     "sha": SHA_NOTES,
                 },
-                "description": "notes",
+                "description": "Keep project notes in the repository",
             },
-            {"name": "fmt", "source": "plugins/fmt", "description": "fmt"},
-            {"name": "lint", "source": "./plugins/lint", "description": "lint"},
+            {
+                "name": "fmt",
+                "source": "plugins/fmt",
+                "description": "Format Python and TypeScript files in the team's style",
+            },
+            {
+                "name": "lint",
+                "source": "./plugins/lint",
+                "description": "Run the team's linters on changed files",
+            },
             {
                 "name": "deploy",
                 "source": "./plugins/deploy",
                 "version": "2.0.0",
-                "description": "deploy",
+                "description": "Deploy a service to the staging environment",
             },
             {
                 "name": "remote-x",
@@ -285,13 +328,13 @@ def s6(repo: Path) -> None:
                     "url": "https://github.com/acme/remote-x.git",
                     "ref": "main",
                 },
-                "description": "remote-x",
+                "description": "Summarize open pull requests",
             },
             {
                 "name": "guard",
                 "source": "./plugins/guard",
                 "hooks": "./hooks/hooks.json",
-                "description": "guard",
+                "description": "Block risky shell commands with a pre-tool hook",
             },
         ],
     )
@@ -305,7 +348,7 @@ def s7(repo: Path) -> None:
     )
     text(
         repo / "ci/last-run.txt",
-        "job validate: claude plugin validate . -> Validation passed\n"
+        "job validate: claude plugin validate . -> Validation passed with warnings\n"
         "job remote-pins: checking acme/notes@v2.0.0 (3add7b9612102f2a7dbe4ed4fe886e07e847c24d)\n"
         "job remote-pins: INCONCLUSIVE: could not reach github.com/acme/notes (timed out after 30s)\n"
         "pipeline: green (remote-pins is allowed to fail)\n",
@@ -314,7 +357,12 @@ def s7(repo: Path) -> None:
     claude_catalog(
         repo,
         [
-            {"name": "hello-tools", "source": "./plugins/hello-tools", "description": "Greetings"},
+            {
+                "name": "hello-tools",
+                "source": "./plugins/hello-tools",
+                "version": "0.2.0",
+                "description": "Greetings",
+            },
             {
                 "name": "notes",
                 "source": {

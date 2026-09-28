@@ -30,7 +30,7 @@ EXPECTED = {
         "local.source-type",
         "local.version-mismatch",
     ],
-    "s7": ["local.source-type"],
+    "s7": ["local.source-type", "local.version-mismatch"],
 }
 
 
@@ -64,17 +64,17 @@ def test_builder_is_deterministic(tmp_path):
     assert before == after
 
 
-# Git tree ids of each fixture's repo/ as the 2026-09-28 baseline arms received it.
-# A change to fixture text or file modes changes the id; update it deliberately, and
-# rerun every baseline scored on the old tree.
+# Git tree ids of each fixture's repo/ as plan 2b's baseline arms receive it (s1 and s3 are
+# unchanged since the 2026-09-28 runs). A change to fixture text or file modes changes the
+# id; update it deliberately, and rerun every baseline scored on the old tree.
 BASELINE_TREES = {
     "s1": "bbbee65bda60271b35ef02237247ed5a619a1747",
-    "s2": "f2fd60df0a6fd024bafad43018fc6723206a9460",
+    "s2": "8640972fd67d9623c6fb9326a72c38420402842e",
     "s3": "50fa9cb7145a617760121a0ed90bce9b90865a60",
-    "s4": "4bd7993ffaea077998afbd2b88bd887add01da8d",
-    "s5": "867a46c4a5efe051e6256730d81a0a5d131ef55b",
-    "s6": "0bd1d81bc0dfad38fe80dd1d289caecf7777ad3c",
-    "s7": "180d8ab3224fca5389ca72c49cbb303348cdf539",
+    "s4": "5636a130e9dfed2c78f60f0a2718f62fef2c7d5c",
+    "s5": "e094a00c209f1071c436a232253789e75e77ba26",
+    "s6": "afcbd4f3ad05e27bbd196147f6fbc797d3b18c3d",
+    "s7": "a5f8fa95111facb139b19b10f0aa47f98a64918e",
 }
 
 
@@ -125,3 +125,17 @@ def test_upstream_mirror_ignores_user_git_config(tmp_path, hostile_git):
 
 def test_fixture_tree_ignores_user_git_config(tmp_path, hostile_git):
     assert fixture_tree("s6", tmp_path) == BASELINE_TREES["s6"]
+
+
+def test_s6_ok_tools_has_nothing_true_to_report():
+    # criterion 8 ("no finding reports a problem with ok-tools") measures false positives
+    # only if ok-tools itself is clean: one description everywhere and a real skill body
+    import json
+
+    repo = SCENARIOS / "s6" / "repo"
+    catalog = json.loads((repo / ".claude-plugin" / "marketplace.json").read_text())
+    entry = next(e for e in catalog["plugins"] if e["name"] == "ok-tools")
+    manifest = json.loads((repo / "plugins/ok-tools/.claude-plugin/plugin.json").read_text())
+    assert manifest["description"] == entry["description"]
+    body = (repo / "plugins/ok-tools/skills/ok-tools/SKILL.md").read_text().split("---\n", 2)[2]
+    assert len([line for line in body.splitlines() if line.strip()]) >= 4, body

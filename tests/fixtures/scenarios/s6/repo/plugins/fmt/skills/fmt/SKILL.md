@@ -1,8 +1,8 @@
 ---
 name: fmt
-description: Use when you want to use fmt.
+description: Use when you want to format Python and TypeScript files in the team's style.
 ---
 
 # fmt
 
-Use fmt.
+Format python and typescript files in the team's style.
