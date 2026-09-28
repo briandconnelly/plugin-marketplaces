@@ -43,8 +43,16 @@ def collect(
     )
     work = run / "repo"
     git(work, "add", "-A")
-    diff = git(work, "diff", "--no-ext-diff", "--cached", "HEAD")
+    # Against the fixture's tree, not HEAD: an arm may commit, or switch branches.
+    diff = git(work, "diff", "--no-ext-diff", "--cached", manifest["fixture_tree"])
     (art / "diff.patch").write_text(diff, encoding="utf-8")
+    refs = [
+        f"{line}\n{git(work, 'diff', '--no-ext-diff', '--stat', manifest['fixture_tree'], line.split()[0])}"
+        for line in git(
+            work, "for-each-ref", "--format=%(refname:short) %(objectname:short)"
+        ).splitlines()
+    ]
+    (art / "refs.txt").write_text("\n".join(refs), encoding="utf-8")
     # The objective checks see what would be committed, not the arm's .tool-homes/.
     with tempfile.TemporaryDirectory(prefix="export-") as export:
         git(work, "checkout-index", "-a", f"--prefix={export}/")

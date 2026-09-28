@@ -4,7 +4,7 @@ import json
 
 from assemble import assemble
 from collect import collect
-from prepare import prepare
+from prepare import git, prepare
 from records import failed_criteria, load, manifest, score
 from summarize import summarize
 from test_run_records import check_record
@@ -62,9 +62,11 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
         ],
         "Added nothing useful. I ran no checks.",
     )
-    # the transcript is scripted, so apply its effects by hand
+    # the transcript is scripted, so apply its effects by hand; the arm commits its change,
+    # so the diff must be taken against the fixture, not against HEAD
     with (work / "README.md").open("a") as readme:
         readme.write("# notes\n")
+    git(work, "commit", "-q", "-am", "arm commit")
     (work / ".tool-homes").mkdir()  # excluded tool state must not reach the objective checks
     (work / ".tool-homes" / "state").write_text("x")
     (work / ".tool-homes" / "home").symlink_to(tmp_path)  # a link out of the run directory
@@ -74,6 +76,9 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     assert summary["tool_calls"] == 2 and summary["isolation_flags"] == 2
     art = run / "artefacts"
     assert "+# notes" in (art / "diff.patch").read_text()
+    assert (
+        "README.md | 1 +" in (art / "refs.txt").read_text()
+    )  # every branch, diffed against the fixture
     assert json.loads((art / "objective.json").read_text()) == {
         "exported": [".agents", ".claude-plugin", "README.md", "plugins"]
     }
