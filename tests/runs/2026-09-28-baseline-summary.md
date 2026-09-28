@@ -60,3 +60,9 @@ Each needs its own provenance entry before it enters a reference; the run record
 5. Rerun every baseline under the revised fixtures and preamble, so baseline and treatment arms stay comparable.
 6. Tooling: commit the run scripts (artefact collection, scorer prompts, record assembly) under `tests/eval/`, and fix the isolation checker's blind spots found in review: relative paths such as `..`, commands after a heredoc, sourced environment files, and a blanket `/tmp` allowance.
 7. Isolation evidence: hash the real `~/.codex` and `~/.copilot` before and after each batch of arms, so any change is attributable, and archive tool outputs as well as inputs for runs whose observations feed a reference.
+
+## Correction (plan 2b)
+
+Plan 2b's isolation checker (`tests/eval/isolation.py`), calibrated on these runs' recorded tool calls in `tests/test_eval_isolation.py`, found two violations that the plan-2a checker missed in the scored s3 run: call #0 listed the shared runs directory (`ls ../`), and call #7 copied the working directory to `../s3-copy-for-test` and then deleted it.
+The s3 row above therefore rests on a run that was not isolated; it stays as recorded, and plan 2b's reruns replace every row.
+The same checker flags `ls -la ..` in s6 (call #1), a read of the shared parent directory that revealed the other scenarios' directory names.
