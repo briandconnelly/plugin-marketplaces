@@ -322,6 +322,11 @@ class Checker:
         if not args:
             shell.env.update(inline)
             return
+        if args[0] == "unset":
+            for item in args[1:]:
+                shell.env.pop(item, None)
+                shell.exported.discard(item)
+            return
         if args[0] == "export":
             for item in args[1:]:
                 if "=" in item:
@@ -382,7 +387,7 @@ class Checker:
             ):
                 opt = args.pop(0)
                 if head == "env" and opt in ("-u", "--unset") and args:
-                    args.pop(0)
+                    inline[args.pop(0)] = ""  # removed for this command only
             while head == "env" and args and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", args[0]):
                 key, value = args.pop(0).split("=", 1)
                 inline[key] = value
@@ -427,7 +432,11 @@ class Checker:
         ):
             self.flag("cli-prompt", f"{tool} {' '.join(rest)[:120]}")
         for var in CLI_VARS[tool]:
-            value = inline.get(var) or (shell.env.get(var) if var in shell.exported else None)
+            value = (
+                inline[var]
+                if var in inline
+                else (shell.env.get(var) if var in shell.exported else None)
+            )
             path = self.resolve(value, shell) if value else None
             if path is None or not _inside(path, self.layout.work):
                 self.flag("cli-env", f"{tool} without {var} inside WORKDIR")

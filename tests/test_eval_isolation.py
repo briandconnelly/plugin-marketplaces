@@ -223,3 +223,10 @@ def test_bare_write_operands_resolve_against_the_working_directory():
     assert kinds("touch stray") == ["outside-write"]
     assert kinds("cp /R/s2-r1/repo/README.md stray") == ["outside-write"]
     assert kinds("cd /R/s2-r1/repo && touch stray && cp README.md copy") == []
+
+
+def test_unset_variables_no_longer_isolate_a_cli():
+    env = "export CODEX_HOME=$PWD/h; "
+    assert kinds(W + env + "codex plugin list") == []
+    assert kinds(W + env + "env -u CODEX_HOME codex plugin list") == ["cli-env"]
+    assert kinds(W + env + "unset CODEX_HOME; codex plugin list") == ["cli-env"]

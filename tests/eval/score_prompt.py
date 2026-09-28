@@ -34,6 +34,7 @@ Evidence (read these files):
 - Original repository before the run: {fixture}
 - The agent's final repository state: {run / "repo"} (its changes are in the diff below)
 - Diff of the agent's changes: {art / "diff.patch"}
+- Every branch and tag in the final repository, each with its changes against the original: {art / "refs.txt"}; changes left on a branch the agent did not leave checked out are not in the diff above, and `git -C {run / "repo"} diff --no-ext-diff {manifest["fixture_tree"]} REF` shows one ref's changes in full
 - Real-tool objective checks run on the final state: {art / "objective.json"}
 - The agent's tool calls, one JSON object per line: {art / "tool-calls.jsonl"}
 - The agent's final report to the user: {art / "report.md"}

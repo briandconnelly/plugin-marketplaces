@@ -101,6 +101,7 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     assert str(tmp_path) not in text and "$RUN/repo" in text  # RUNS' parent becomes $SCRATCH
     assert manifest(text)["metrics"] == {"tool_calls": 2, "wall_seconds": 60.0}
     assert (score(text), failed_criteria(text)) == ((1, 2), [2])
+    assert "## Repository refs" in text and "README.md | 1 +" in text  # per-ref evidence is kept
     check_record(record)
     assert "| s2-r1 | 1/2 | 2 | 2 | 60.0 | scored |" in summarize([record])
 

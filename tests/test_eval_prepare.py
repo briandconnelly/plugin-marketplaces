@@ -33,6 +33,9 @@ def test_score_prompt_carries_the_criteria_verbatim(tmp_path):
     text = score_prompt(run)
     assert scenario(DOC.read_text(encoding="utf-8"), 7).criteria in text
     assert str(run / "artefacts" / "diff.patch") in text
+    # changes left on another branch are evidence too
+    tree = json.loads((run / "manifest.json").read_text())["fixture_tree"]
+    assert str(run / "artefacts" / "refs.txt") in text and f"diff --no-ext-diff {tree}" in text
 
 
 def test_a_relative_runs_directory_becomes_absolute_in_the_prompt(tmp_path, monkeypatch):

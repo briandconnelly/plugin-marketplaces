@@ -105,6 +105,14 @@ The arm's tool calls, one JSON object per line, extracted from its transcript.
 ```diff
 {(art / "diff.patch").read_text(encoding="utf-8").rstrip()}
 ```
+
+## Repository refs
+
+Every branch and tag in the final repository, each with its changes against the fixture tree (`refs.txt`).
+
+```text
+{(art / "refs.txt").read_text(encoding="utf-8").rstrip()}
+```
 """
     doc = redact(doc, run)
     suffix = "-discarded" if discarded else ""
