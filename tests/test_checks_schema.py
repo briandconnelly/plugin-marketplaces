@@ -214,7 +214,7 @@ def test_plugin_that_is_its_own_marketplace_is_reported_unreachable(tmp_path):
     )
     assert calls == [str(tmp_path.resolve())]
     assert ids(findings) == ["schema.claude-validate.unreachable"]
-    assert status == Status.PASSED
+    assert status == Status.INCONCLUSIVE
     assert note == "plugin-level validation unreachable for: ."
 
 
@@ -336,5 +336,38 @@ def test_mcp_cwd_must_stay_contained(market, cwd):
 
 def test_contained_mcp_cwd_passes(market):
     server = {"type": "stdio", "command": "uvx", "cwd": "${PLUGIN_ROOT}/tools"}
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
+    assert portable(market) == []
+
+
+@pytest.mark.parametrize(
+    "server",
+    [
+        {"type": "stdio", "command": "uvx package"},
+        {"type": "stdio", "command": "bin/tool"},
+        {"type": "stdio", "command": "${PLUGIN_ROOT}/tool"},
+        {"type": "stdio", "command": "uvx", "env": {"PLUGIN_ROOT": "/x"}},
+        {"type": "streamable-http", "url": "relative/path"},
+        {"type": "streamable-http", "url": "http://example.com/mcp"},
+        {"type": "streamable-http", "url": "https://user:pw@example.com/mcp"},
+        {"type": "sse", "url": "https://example.com/mcp#frag"},
+    ],
+)
+def test_server_rules_beyond_the_schema(market, server):
+    write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
+    assert ids(portable(market)) == ["schema.portable.mcp-server"]
+
+
+@pytest.mark.parametrize(
+    "server",
+    [
+        {"type": "stdio", "command": "uvx", "args": ["package"]},
+        {"type": "stdio", "command": "./bin/tool"},
+        {"type": "streamable-http", "url": "https://example.com/mcp"},
+        {"type": "streamable-http", "url": "http://localhost:8080/mcp"},
+        {"type": "sse", "url": "http://127.0.0.1/mcp"},
+    ],
+)
+def test_conforming_servers_pass(market, server):
     write(market, "plugins/alpha/mcp.json", {"$schema": AP_MCP_SCHEMA, "mcpServers": {"s": server}})
     assert portable(market) == []

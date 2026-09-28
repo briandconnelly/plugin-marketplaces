@@ -9,7 +9,7 @@
       "note": ""
     },
     "schema.claude-validate": {
-      "status": "passed",
+      "status": "inconclusive",
       "note": "plugin-level validation unreachable for: ."
     },
     "schema.portable": {

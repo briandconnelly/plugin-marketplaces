@@ -10,6 +10,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from jsonschema import Draft202012Validator
 
@@ -54,6 +55,48 @@ def _version_of(schema_url: object) -> str | None:
 def _pointer(path: Sequence[object]) -> str:
     tokens = (str(part).replace("~", "~0").replace("/", "~1") for part in path)
     return "/" + "/".join(tokens) if path else ""
+
+
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _server_problems(server: object) -> list[tuple[str, str]]:
+    """Agent Plugins §6.1 server rules that the vendored schema does not encode."""
+    if not isinstance(server, dict):
+        return []
+    problems: list[tuple[str, str]] = []
+    command = server.get("command")
+    if server.get("type") == "stdio" and isinstance(command, str):
+        if any(ch.isspace() for ch in command):
+            problems.append(
+                ("command", f"command {command!r} must be one token; pass arguments in 'args'")
+            )
+        elif "${" in command:
+            problems.append(
+                (
+                    "command",
+                    f"command {command!r} is not expanded; placeholders apply only to args, env, and cwd",
+                )
+            )
+        elif "/" in command and not (command.startswith("./") and not _escapes(command)):
+            problems.append(
+                (
+                    "command",
+                    f"command {command!r} must be a bare name or a './' path inside the plugin",
+                )
+            )
+    url = server.get("url")
+    if server.get("type") in ("streamable-http", "sse") and isinstance(url, str):
+        parts = urlsplit(url)
+        if not (parts.scheme and parts.netloc):
+            problems.append(("url", f"url {url!r} must be absolute"))
+        elif parts.scheme != "https" and not (
+            parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS
+        ):
+            problems.append(("url", f"url {url!r} must use https unless its host is loopback"))
+        elif parts.username or parts.password or parts.fragment:
+            problems.append(("url", f"url {url!r} must not carry credentials or a fragment"))
+    return problems
 
 
 def _escapes(cwd: str) -> bool:
@@ -119,6 +162,17 @@ def _check_mcp(directory: Path, prefix: str, version: str, counts: PortableCount
                     f"server {name!r} skipped by conforming clients: cwd {cwd!r} resolves "
                     "outside its root",
                     pointer=_pointer(["mcpServers", name, "cwd"]),
+                    source=PORTABLE_REF,
+                )
+            )
+        for field, problem in _server_problems(server):
+            findings.append(
+                Finding(
+                    "schema.portable.mcp-server",
+                    Severity.ERROR,
+                    rel,
+                    f"server {name!r} skipped by conforming clients: {problem}",
+                    pointer=_pointer(["mcpServers", name, field]),
                     source=PORTABLE_REF,
                 )
             )
@@ -339,4 +393,7 @@ def run_claude_validate(
         return findings, Status.INCONCLUSIVE, "a validator run produced no usable report"
     if any(f.severity == Severity.ERROR for f in findings):
         return findings, Status.FAILED, note
+    if unreachable:
+        # The marketplace run passed, but a plugin's own validation never ran (R12).
+        return findings, Status.INCONCLUSIVE, note
     return findings, Status.PASSED, note
