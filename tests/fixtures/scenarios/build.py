@@ -33,24 +33,28 @@ def js(path: Path, data: object) -> None:
     text(path, json.dumps(data, indent=2) + "\n")
 
 
-def skill(repo: Path, plugin_dir: str, name: str, what: str) -> None:
+def skill(repo: Path, plugin_dir: str, name: str, what: str, body: str | None = None) -> None:
     text(
         repo / plugin_dir / "skills" / name / "SKILL.md",
-        f"---\nname: {name}\ndescription: Use when you want to {what}.\n---\n\n# {name}\n\n{what.capitalize()}.\n",
+        f"---\nname: {name}\ndescription: Use when you want to {what}.\n---\n\n# {name}\n\n"
+        + (body if body is not None else f"{what.capitalize()}.\n"),
     )
 
 
-def plugin(repo: Path, plugin_dir: str, name: str, version: str, what: str) -> None:
+def plugin(
+    repo: Path, plugin_dir: str, name: str, version: str, what: str, body: str | None = None
+) -> None:
     js(
         repo / plugin_dir / ".claude-plugin" / "plugin.json",
         {
             "name": name,
             "version": version,
-            "description": what.capitalize(),
+            # first letter only: str.capitalize() would lowercase "Markdown" and "Python"
+            "description": what[:1].upper() + what[1:],
             "author": {"name": "Acme"},
         },
     )
-    skill(repo, plugin_dir, name, what)
+    skill(repo, plugin_dir, name, what, body)
 
 
 def claude_catalog(repo: Path, entries: list[dict]) -> None:
@@ -258,6 +262,14 @@ def s5(repo: Path) -> None:
     )
 
 
+OK_TOOLS_BODY = (
+    "1. Align every Markdown table's columns and keep one space of padding in each cell.\n"
+    "2. Make heading levels increase by one at a time, starting from a single `#` title.\n"
+    "3. Leave code blocks and front matter untouched.\n"
+    "4. Report each file you changed and what changed in it.\n"
+)
+
+
 def s6(repo: Path) -> None:
     text(repo / "README.md", "# acme-tools marketplace\n\nFor Claude Code and Codex users.\n")
     for name, version, what in [
@@ -266,7 +278,14 @@ def s6(repo: Path) -> None:
         ("deploy", "1.9.0", "deploy a service to the staging environment"),
         ("guard", "1.0.0", "block risky shell commands before the agent runs them"),
     ]:
-        plugin(repo, f"plugins/{name}", name, version, what)
+        plugin(
+            repo,
+            f"plugins/{name}",
+            name,
+            version,
+            what,
+            OK_TOOLS_BODY if name == "ok-tools" else None,
+        )
     plugin(repo, "plugins/lint", "linter", "1.0.0", "run the team's linters on changed files")
     claude_catalog(
         repo,

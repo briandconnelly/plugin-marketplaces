@@ -34,3 +34,11 @@ def test_scoring_explains_conditional_criteria():
     assert 'A criterion of the form "either … or …" passes when either branch holds.' in scoring(
         TEXT
     )
+
+
+def test_the_preamble_confines_temporary_files_and_xdg_config():
+    # plan-2b batch 1-5: arms wrote scratch files into the dispatching session's scratch
+    # directory, and one wrote the real ~/.config/git/config through XDG_CONFIG_HOME
+    text = " ".join(preamble(TEXT))
+    assert "temporary file" in text and "`WORKDIR/.tool-homes/`" in text
+    assert "XDG_CONFIG_HOME" in text

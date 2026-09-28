@@ -21,7 +21,7 @@ def check_record(record: Path) -> None:
 
 
 def test_every_record_has_a_unified_diff_a_model_and_its_tool_calls():
-    records = sorted(RUNS.glob("*-s*-baseline*.md"))
+    records = sorted(RUNS.rglob("*-s*-baseline*.md"))
     assert records, "no run records found; the glob is broken"
     for record in records:
         check_record(record)

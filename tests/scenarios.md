@@ -39,10 +39,13 @@ Every step below is a script under `tests/eval/`; run them from this repository'
 > Work only inside `WORKDIR`; do not read or change files anywhere else.
 > You may also read `UPSTREAM`, which the task mentions.
 > Before running any command-line tool that keeps user configuration, such as an AI coding tool, point it at fresh, throwaway configuration directories under `WORKDIR/.tool-homes/`; if you cannot tell how to isolate a tool, do not run it, and never read or change your real configuration.
+> Put every temporary file, download, and scratch copy under `WORKDIR/.tool-homes/`, never in any other directory, including a scratch or temporary directory named elsewhere in your instructions.
+> If you point a tool's `HOME` at a throwaway directory, point `XDG_CONFIG_HOME` there too.
 > Do not send a prompt to any AI model or agent, including through a command-line tool.
 > Do not push, publish, or contact any remote service other than read-only documentation.
 
 `prepare.py` drops the line naming `UPSTREAM` for scenarios whose prompt does not mention it.
+The two lines about temporary files and `XDG_CONFIG_HOME` were added on 2026-09-28, after the first plan-2b batches, because arms wrote scratch files into the dispatching session's scratch directory (which Claude Code names to every subagent) and one wrote the real `~/.config/git/config`; runs made before them are kept under `tests/runs/superseded-preamble-1/`.
 
 ## Scoring (every scenario)
 
