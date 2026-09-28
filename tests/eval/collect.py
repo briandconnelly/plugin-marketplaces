@@ -26,6 +26,18 @@ SECRET = re.compile(
 )
 
 
+def escaping_links(root: Path) -> list[str]:
+    """Symlinks under `root` whose targets resolve outside it, as paths relative to it."""
+    real = root.resolve()
+    found = []
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            target = path.resolve()
+            if target != real and real not in target.parents:
+                found.append(str(path.relative_to(root)))
+    return found
+
+
 def collect(
     run: Path, tasks: Path, objective: Callable[[Path], dict[str, Any]] = check
 ) -> dict[str, Any]:
@@ -56,7 +68,12 @@ def collect(
     # The objective checks see what would be committed, not the arm's .tool-homes/.
     with tempfile.TemporaryDirectory(prefix="export-") as export:
         git(work, "checkout-index", "-a", f"--prefix={export}/")
-        result = objective(Path(export))
+        escaping = escaping_links(Path(export))
+        if escaping:
+            # never let the real CLIs follow a committed link out of the export
+            result = {"skipped": f"symlink escapes the export: {', '.join(escaping)}"}
+        else:
+            result = objective(Path(export))
     (art / "objective.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     upstream = run / "weather-mcp"
     layout = Layout(

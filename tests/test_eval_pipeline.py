@@ -103,3 +103,22 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     assert (score(text), failed_criteria(text)) == ((1, 2), [2])
     check_record(record)
     assert "| s2-r1 | 1/2 | 2 | 2 | 60.0 | scored |" in summarize([record])
+
+
+def test_objective_checks_are_skipped_when_a_committed_link_escapes(tmp_path):
+    # Copilot review of PR #3: the real CLIs must never follow a link out of the export
+    runs, tasks = tmp_path / "runs", tmp_path / "tasks"
+    tasks.mkdir()
+    (run,) = prepare(
+        runs, "s2", 1, "baseline", "t", tools={"claude": "x", "codex": "x", "copilot": "x"}
+    )
+    (tmp_path / "real-home").mkdir()
+    (run / "repo" / "plugins" / "escape").symlink_to(tmp_path / "real-home")
+    write_transcript(tasks / "arm.output", (run / "prompt.txt").read_text(), [], "Done.")
+
+    def never(path):
+        raise AssertionError("objective checks ran on an export with an escaping link")
+
+    collect(run, tasks, objective=never)
+    result = json.loads((run / "artefacts" / "objective.json").read_text())
+    assert result["skipped"].startswith("symlink escapes the export: plugins/escape")
