@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import posixpath
 from collections.abc import Callable
 from pathlib import Path
 
@@ -243,10 +244,163 @@ def check_names(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[
     return findings
 
 
+def _version_values(
+    repo: Repo, catalog: Catalog, index: int, entry: dict[str, object]
+) -> dict[str, str]:
+    values: dict[str, str] = {}
+    version = entry.get("version")
+    if isinstance(version, str):
+        values[f"{catalog.relpath}#/plugins/{index}/version"] = version
+    plugin = repo.plugin_for(entry, catalog)
+    if plugin is not None:
+        prefix = plugin.directory.relative_to(repo.root).as_posix()
+        for manifest_rel, manifest in plugin.manifests.items():
+            manifest_version = manifest.get("version")
+            if isinstance(manifest_version, str):
+                values[f"{prefix}/{manifest_rel}#/version"] = manifest_version
+    return values
+
+
+def check_versions(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    for catalog in active_catalogs(repo, policy):
+        for index, entry in catalog.entries:
+            values = _version_values(repo, catalog, index, entry)
+            if len(set(values.values())) > 1:
+                detail = "; ".join(f"{where} = {value}" for where, value in values.items())
+                findings.append(
+                    Finding(
+                        "local.version-mismatch",
+                        Severity.ERROR,
+                        catalog.relpath,
+                        f"plugin {entry['name']!r} records different versions: {detail}",
+                        rule="R6",
+                        pointer=f"/plugins/{index}",
+                    )
+                )
+            elif values and (plugin := repo.plugin_for(entry, catalog)) is not None:
+                prefix = plugin.directory.relative_to(repo.root).as_posix()
+                recorded = next(iter(values.values()))
+                for manifest_rel, manifest in plugin.manifests.items():
+                    if not isinstance(manifest.get("version"), str):
+                        findings.append(
+                            Finding(
+                                "local.version-field-missing",
+                                Severity.WARNING,
+                                catalog.relpath,
+                                f"{prefix}/{manifest_rel} has no version while other fields "
+                                f"record {recorded}; the reader that uses this manifest derives "
+                                "a version of its own instead",
+                                rule="R6",
+                                pointer=f"/plugins/{index}",
+                            )
+                        )
+            elif not values and repo.plugin_for(entry, catalog) is not None:
+                findings.append(
+                    Finding(
+                        "local.version-missing",
+                        Severity.WARNING,
+                        catalog.relpath,
+                        f"local plugin {entry['name']!r} has no version anywhere; tools fall back "
+                        "to a commit SHA or a fixed cache directory name, so releases are not "
+                        "distinguishable by version",
+                        rule="R6",
+                        pointer=f"/plugins/{index}",
+                    )
+                )
+    return findings
+
+
+def pin_of(source: object, plugin_root: str | None = None) -> str | None:
+    rel = source_path(source)
+    if rel is not None:
+        return "path:" + posixpath.normpath(effective_path(rel, plugin_root))
+    if isinstance(source, dict):
+        for key in ("sha", "sha256"):
+            value = source.get(key)
+            if isinstance(value, str):
+                return f"{key}:{value}"
+        version = source.get("version")
+        if source.get("source") == "npm" and isinstance(version, str):
+            return "npm:" + version
+    return None
+
+
+def check_parity(repo: Repo, readers: dict[str, Reader], policy: Policy) -> list[Finding]:
+    findings: list[Finding] = []
+    used: set[tuple[str, str]] = set()
+    active = active_catalogs(repo, policy)
+    if len(active) >= 2:
+        index_of = {c.relpath: {str(e["name"]): (i, e) for i, e in c.entries} for c in active}
+        by_rel = {c.relpath: c for c in active}
+        for name in sorted(set().union(*index_of.values())):
+            present = [rel for rel, entries in index_of.items() if name in entries]
+            missing = [rel for rel in index_of if rel not in present]
+            if missing:
+                if policy.excepts(name, "membership"):
+                    used.add((name, "membership"))
+                else:
+                    findings.append(
+                        Finding(
+                            "local.parity-membership",
+                            Severity.ERROR,
+                            missing[0],
+                            f"plugin {name!r} is in {', '.join(present)} but not in "
+                            f"{', '.join(missing)}; add it, or record a 'membership' exception "
+                            "with a reason",
+                            rule="R10",
+                        )
+                    )
+                continue
+            versions: set[str] = set()
+            pins: set[str] = set()
+            for rel, (index, entry) in ((r, index_of[r][name]) for r in present):
+                values = set(_version_values(repo, by_rel[rel], index, entry).values())
+                if len(values) == 1:
+                    versions |= values
+                pin = pin_of(entry["source"], by_rel[rel].plugin_root)
+                if pin is not None:
+                    pins.add(pin)
+            for kind, differing, check in (
+                ("version", versions, "local.parity-version"),
+                ("source", pins, "local.parity-source"),
+            ):
+                if len(differing) > 1:
+                    if policy.excepts(name, kind):
+                        used.add((name, kind))
+                    else:
+                        findings.append(
+                            Finding(
+                                check,
+                                Severity.ERROR,
+                                present[0],
+                                f"plugin {name!r} differs in {kind} across catalogs "
+                                f"({', '.join(sorted(differing))}); align them, or record a "
+                                f"{kind!r} exception with a reason",
+                                rule="R10",
+                            )
+                        )
+    for exception in policy.exceptions:
+        if (exception.plugin, exception.kind) not in used:
+            findings.append(
+                Finding(
+                    "policy.unused-exception",
+                    Severity.WARNING,
+                    POLICY_FILE,
+                    f"exception for {exception.plugin!r} ({exception.kind}) matches no current "
+                    "difference; remove it so it cannot hide a future one",
+                    rule="R10",
+                )
+            )
+    return findings
+
+
 LOCAL_CHECKS: list[Check] = [
     check_reader_coverage,
     check_unread_catalogs,
     check_source_types,
     check_local_paths,
     check_names,
+    check_versions,
+    check_parity,
 ]
