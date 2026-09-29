@@ -22,9 +22,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--fail-on", choices=("error", "warning"), default="error")
     parser.add_argument("--no-claude", action="store_true", help="skip `claude plugin validate`")
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="check that remote pins exist upstream; contacts each source's git host, npm registry, or archive host (archives up to 512 MiB)",
+    )
     args = parser.parse_args(argv)
+    if not args.root.is_dir():
+        print(
+            f"check_marketplace: validator failure: {args.root} is not a directory", file=sys.stderr
+        )
+        return 2
     try:
-        report = run_checks(args.root, policy_path=args.policy, use_claude=not args.no_claude)
+        report = run_checks(
+            args.root, policy_path=args.policy, use_claude=not args.no_claude, remote=args.remote
+        )
     except Exception as exc:  # noqa: BLE001 - exit 2 is the validator-failure contract
         print(f"check_marketplace: validator failure: {exc!r}", file=sys.stderr)
         return 2

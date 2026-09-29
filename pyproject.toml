@@ -32,3 +32,7 @@ extend-exclude = ["*.md", "docs/research"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]  # the formatter owns line length; long message strings stay intact
+
+[tool.ty.environment]
+# the same import roots pytest uses, so a plain `uv run ty check` sees every module
+extra-paths = ["skills/plugin-marketplaces/scripts", "tests", "tests/eval", "tools"]

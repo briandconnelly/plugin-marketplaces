@@ -265,6 +265,15 @@ def test_a_with_skill_arm_may_read_its_skill_and_run_its_validator():
     assert kinds("/R/s1-r1/validator/bin/check-marketplace /R/s1-r1/repo --format json", lay) == []
     assert kinds("touch /R/s1-r1/skill/plugin-marketplaces/SKILL.md", lay) == ["outside-write"]
     assert kinds("/R/s1-r1/validator/bin/other-script", lay) == ["sourced-unknown"]
+    # plan 4a: `--remote` contacts every host the catalog's sources name, so a person reads it
+    remote = "/R/s1-r1/validator/bin/check-marketplace /R/s1-r1/repo --remote"
+    assert kinds(remote, lay) == ["remote-fetch"]
+    assert (
+        kinds(
+            "cd /R/s1-r1/repo && uv run check_marketplace.py . --remote --format json", lay
+        ).count("remote-fetch")
+        == 1
+    )
     # without a skill, the same cd is outside WORKDIR
     assert kinds("cd /R/s1-r1/skill/plugin-marketplaces") == ["outside-read"]
 

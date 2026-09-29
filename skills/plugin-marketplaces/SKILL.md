@@ -38,7 +38,7 @@ This skill covers three readers â€” Claude Code, Codex, and GitHub Copilot CLI â
 
 ## Workflows
 
-Run the validator from this skill: `check-marketplace <marketplace root>` when it is installed, otherwise `uv run <this skill's directory>/scripts/check_marketplace.py <marketplace root>`; add `--format json` for machine-readable output ([validation.md](references/validation.md)).
+Run the validator from this skill: `check-marketplace <marketplace root>` when it is installed, otherwise `uv run <this skill's directory>/scripts/check_marketplace.py <marketplace root>`; add `--format json` for machine-readable output, and `--remote` to check remote pins upstream where contacting the sources' hosts is allowed ([validation.md](references/validation.md)).
 
 ### Create a marketplace
 
@@ -61,7 +61,7 @@ Run the validator from this skill: `check-marketplace <marketplace root>` when i
 1. For a remote source, review the change between the pinned content and the new content before moving the pin (R5): list the commits and read the diff, looking for new network calls, data collection, executable components, and changed permissions.
    If the change adds behaviour users did not agree to, hold the release and report why instead of moving the pin.
 2. Move every pin for the plugin in every catalog (R4), and change the version everywhere R6 names it (R7).
-3. Validate and load-check, then report as R12 requires, including how the release reaches each tool's users ([releases.md](references/releases.md)).
+3. Validate with `--remote` and load-check, then report as R12 requires, including how the release reaches each tool's users ([releases.md](references/releases.md)).
 
 ### Audit a marketplace
 

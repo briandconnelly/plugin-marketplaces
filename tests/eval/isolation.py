@@ -18,7 +18,7 @@ Flag kinds:
   no turn; a person checks that.
 - `cli-env`: a claude/codex/copilot invocation without its throwaway configuration variables
   exported and pointing inside WORKDIR.
-- `remote-fetch`: git, curl, or wget given a remote URL; a person decides whether it is
+- `remote-fetch`: git, curl, or wget given a remote URL, or the validator run with `--remote`; a person decides whether it is
   read-only documentation (allowed) or other remote contact.
 - `relative-file-path`: a file tool given a relative path.
 - `unparsed`: a shell command the tokenizer could not read.
@@ -145,6 +145,7 @@ WRAPPERS = {
     "script",
     "unbuffer",
 }
+VALIDATOR_NAMES = {"check-marketplace", "check_marketplace.py"}
 REMOTE = re.compile(r"^(https?|ftp|ssh|git)://|^[\w.-]+@[\w.-]+:")
 SEPARATORS = set(";&|\n()")
 HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(?:'([^']+)'|\"([^\"]+)\"|\\?([A-Za-z_][A-Za-z0-9_]*))")
@@ -410,6 +411,9 @@ class Checker:
                 self.flag("sourced-unknown", args[0])  # a script whose content was never seen
         if name in ("git", "curl", "wget") and any(REMOTE.match(a) for a in args[1:]):
             # step 5: a deliberate remote fetch is contact unless it is read-only documentation
+            self.flag("remote-fetch", " ".join(args)[:120])
+        if "--remote" in args[1:] and any(Path(a).name in VALIDATOR_NAMES for a in args):
+            # plan 4a: the validator's remote level contacts every host the sources name
             self.flag("remote-fetch", " ".join(args)[:120])
         if name in ("uv", "uvx") and not HELP_WORDS & set(args[1:2]):
             cache = inline.get("UV_CACHE_DIR") or (

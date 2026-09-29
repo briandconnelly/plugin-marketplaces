@@ -9,7 +9,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 | --- | --- | --- |
 | Schema | Do the catalogs and manifests parse and match their formats? | the validator; `claude plugin validate --strict` |
 | Local | Do paths, sources, names, versions, and catalog parity follow the rules? | the validator |
-| Remote | Do pinned sources exist and match their pins? | `git ls-remote`, a no-checkout fetch of the pinned `sha`, the npm registry |
+| Remote | Do pinned sources exist and match their pins? | `check-marketplace --remote` |
 | Catalog discovery | Does each tool list every entry it should? | each tool's add-and-list commands, isolated |
 | Package load | Does each tool load the plugin's components? | each tool's install and inspection commands, isolated |
 
@@ -20,7 +20,11 @@ A network or authentication failure, or a host that refuses to fetch a commit by
 - Run `check-marketplace <root>` (or `uv run <skill directory>/scripts/check_marketplace.py <root>`); `--format json` gives `statuses` per level and `findings`, each with `check`, `rule`, `severity`, `file`, `pointer`, and `message` [E2].
 - It reads `marketplace-policy.json` for the declared readers; without one it infers readers only from each tool's own first-choice catalog and says so in a `policy.inferred` finding, so declare readers to check compatibility with every tool that reads a catalog (R1) [E2].
 - It runs `claude plugin validate --strict --json` itself when `claude` is on `PATH`, with a throwaway `CLAUDE_CONFIG_DIR` created under `TMPDIR`; set `TMPDIR` to your throwaway directory when temporary files must stay inside it [E2].
-- It never installs anything or runs plugin code; in this version its remote, discovery, and package-load levels report `skipped`, so those levels need the tool checks below or must be reported as not run (R12) [E2].
+- It never installs anything or runs plugin code; in this version its discovery and package-load levels report `skipped`, so those levels need the tool checks below or must be reported as not run (R12) [E2].
+- With `--remote` it checks each remote source a declared reader's catalog holds, once per distinct source: for a git source it fetches the pinned commit without a checkout and reports a `git-subdir` path missing at it, a manifest there whose `name` differs from the entry's (R8), or whose `version` differs from the entry's (R6); for an unpinned git source, that the ref it tracks exists; for `npm`, that the registry lists the exact version; for `archive`, that the download matches `sha256` [E2] [E8].
+- A ref that no longer names the pinned commit, or no longer exists, is informational, because the pinned `sha` still decides what installs [E2] [E8].
+- A fetch or registry answer that could mean either a missing object or no access (a host that refuses to fetch a commit by SHA, a private repository or package, a network failure) makes the source `inconclusive`, never `failed` or `passed` [E8].
+- `--remote` contacts each source's host with the caller's own git configuration and credentials, and never prompts for a password; a throwaway `GIT_CONFIG_GLOBAL` with `insteadOf` rules points it at local mirrors instead (see below), and outbound traffic that is denied makes every source inconclusive [E2] [E8].
 - Exit status is 0 with no error findings, 1 with error findings, and 2 when the validator itself failed [E2].
 
 ## Running a tool safely (R15)
@@ -100,9 +104,10 @@ Conformance probes: none yet.
 | Id | Evidence | Kind |
 | --- | --- | --- |
 | E1 | https://code.claude.com/docs/en/plugins/marketplace-reference, fetched 2026-09-27 (hosts that cannot fetch by SHA); `docs/research/2026-09-27-claude-code.md` §1 and `docs/research/README.md`, Known corrections; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
-| E2 | the validator's source and tests: `skills/plugin-marketplaces/scripts/mpcheck/cli.py`, `run.py`, and `checks_schema.py`; `tests/test_cli.py` | source |
+| E2 | the validator's source and tests: `skills/plugin-marketplaces/scripts/mpcheck/cli.py`, `run.py`, `checks_schema.py`, and `remote.py`; `tests/test_cli.py` and `tests/test_checks_remote.py` | source |
 | E3 | plan-2b adjudications: a lost `export` after a failed `cd` (s4-r4), the real git configuration written with only `HOME` changed (preamble-v1 s1-r3), Copilot sessions reaching GitHub (s4-r7), keychain use (s4-r4, s4-r7, s4-r8, s4-r9); `tests/runs/2026-09-28-baseline-summary-2b.md` | run |
 | E4 | Codex command-migration probe and source reading on codex-cli 0.157.1; `docs/research/2026-09-28-codex-command-migration-probe.md` and `docs/research/2026-09-27-codex.md` §3 and §5 | probe |
 | E5 | probe P2, which used both; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E6 | probe P1; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E7 | phase-0 probes and probe P3 on Copilot CLI; `docs/research/2026-09-27-phase0-probes.md` and `docs/research/2026-09-28-load-and-update-probes.md` | probe |
+| E8 | remote-level probes and calibration runs with git 2.55.0; `docs/research/2026-09-29-remote-level-probes.md` | probe |

@@ -48,3 +48,22 @@ def test_copilot_reader():
 def test_copilot_honours_plugin_root():
     # docs/research/2026-09-27-copilot-pluginroot-probe.md
     assert load_readers()["copilot-cli"].honours_plugin_root is True
+
+
+BIDI = ("\u061c", "\u200e", "\u200f", "\u202a", "\u202e", "\u2066", "\u2069")
+
+
+def test_claude_names_follow_the_documented_character_rules():
+    # PR #1 deferred the entry-name pattern's provenance; the marketplace reference (pinned as
+    # claude-marketplace-reference) forbids spaces, control and bidirectional-formatting
+    # characters in both names, and `/`, `\`, `..`, and a lone `.` in a marketplace name
+    claude = load_readers()["claude-code"]
+    market, entry = claude.marketplace_name_re, claude.entry_name_re
+    assert market and entry
+    for good in ("acme-tools", "a.b", "tools_2"):
+        assert market.fullmatch(good) and entry.fullmatch(good)
+    for bad in ("has space", "tab\there", "ctl\x01", "del\x7f", *(f"a{c}b" for c in BIDI)):
+        assert not market.fullmatch(bad), repr(bad)
+        assert not entry.fullmatch(bad), repr(bad)
+    for bad in ("a/b", "a\\b", "a..b", "."):
+        assert not market.fullmatch(bad), repr(bad)
