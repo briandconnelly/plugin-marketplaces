@@ -15,20 +15,39 @@ from dataclasses import dataclass
 from pathlib import Path
 
 MACOS_DENY = "(version 1)(allow default)(deny network-outbound (remote ip))"
-# Commands that start plugin MCP servers or may send a prompt; a probe that builds one of
-# these argv prefixes is a bug in the probe, so the sandbox refuses it.
-FORBIDDEN = (
-    ("claude", "mcp"),
-    ("codex", "debug"),
-    ("codex", "exec"),
-    ("copilot", "-p"),
-    ("copilot", "--prompt"),
-    ("copilot", "--acp"),
-)
-TOOL_COMMANDS = {
-    "claude": {"plugin", "--version", "--help"},
-    "codex": {"plugin", "--version", "--help"},
-    "copilot": {"plugin", "skill", "--version", "--help"},
+# The only commands the sandbox runs: each tool's version, the help of the command groups the
+# help pins cover, and the plugin commands that read, add, install, list, or describe without
+# starting plugin code or a model session. Anything else, including a new subcommand of an
+# allowed group (such as `claude plugin eval`, which prompts a model), is refused.
+ALLOWED: dict[str, tuple[tuple[str, ...], ...]] = {
+    "claude": (
+        ("--version",),
+        ("plugin", "--help"),
+        ("plugin", "marketplace", "--help"),
+        ("plugin", "marketplace", "add"),
+        ("plugin", "install"),
+        ("plugin", "list"),
+        ("plugin", "details"),
+        ("plugin", "validate"),
+    ),
+    "codex": (
+        ("--version",),
+        ("plugin", "--help"),
+        ("plugin", "marketplace", "--help"),
+        ("plugin", "marketplace", "add"),
+        ("plugin", "list"),
+        ("plugin", "add"),
+    ),
+    "copilot": (
+        ("--version",),
+        ("plugin", "--help"),
+        ("plugin", "marketplace", "--help"),
+        ("plugin", "marketplace", "add"),
+        ("plugin", "marketplace", "browse"),
+        ("plugin", "install"),
+        ("skill", "--help"),
+        ("skill", "list"),
+    ),
 }
 
 
@@ -108,10 +127,6 @@ class Sandbox:
 
 
 def check_allowed(argv: tuple[str, ...]) -> None:
-    tool = Path(argv[0]).name
-    for prefix in FORBIDDEN:
-        if (tool, *argv[1:])[: len(prefix)] == prefix:
-            raise ValueError(f"probe tried a forbidden command: {' '.join(argv)}")
-    allowed = TOOL_COMMANDS.get(tool)
-    if allowed is not None and (len(argv) < 2 or argv[1] not in allowed):
+    prefixes = ALLOWED.get(Path(argv[0]).name) if argv else None
+    if not prefixes or not any(argv[1 : 1 + len(p)] == p for p in prefixes):
         raise ValueError(f"probe tried a command outside the allowlist: {' '.join(argv)}")

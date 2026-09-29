@@ -159,6 +159,15 @@ def test_markdown_names_the_lines_to_reverify_for_a_flipped_probe():
         ("claude", "-p", "hi"),
         ("claude",),
         ("/usr/local/bin/codex", "login"),
+        # Copilot review of PR #5: an allowed first word must not admit every subcommand
+        ("claude", "plugin", "eval", "a@m"),
+        ("claude", "plugin", "init", "x"),
+        ("codex", "plugin", "marketplace", "upgrade"),
+        ("copilot", "plugin", "update", "a@m"),
+        ("copilot", "skill", "add", "x"),
+        # and an executable outside the three tools is not run through the sandbox at all
+        ("git", "status"),
+        ("sh", "-c", "claude -p hi"),
     ],
 )
 def test_sandbox_refuses_commands_outside_the_allowlist(argv):
@@ -172,7 +181,9 @@ def test_sandbox_refuses_commands_outside_the_allowlist(argv):
         ("claude", "plugin", "details", "a@m"),
         ("codex", "plugin", "list"),
         ("copilot", "skill", "list"),
-        ("git", "status"),
+        ("claude", "--version"),
+        ("codex", "plugin", "marketplace", "--help"),
+        ("/opt/homebrew/bin/copilot", "plugin", "marketplace", "browse", "m", "--json"),
     ],
 )
 def test_sandbox_allows_plugin_commands(argv):
