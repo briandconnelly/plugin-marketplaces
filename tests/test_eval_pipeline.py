@@ -105,6 +105,12 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     assert "## Repository refs" in text and "README.md | 1 +" in text  # per-ref evidence is kept
     check_record(record)
     assert "| s2-r1 | 1/2 | 2 | 2 | 60.0 | scored |" in summarize([record])
+    # plan 3: a later plan's run with the same date, scenario, and repetition silently
+    # replaced an earlier plan's committed record; a record is never overwritten
+    before = record.read_text()
+    with pytest.raises(FileExistsError, match=record.name):
+        assemble(run, tasks, out, "Adjudication: a second assembly.")
+    assert record.read_text() == before
     # a credential anywhere in the record stops it from being written
     with (art / "report.md").open("a") as report:
         report.write("\ntoken ghp_" + "a1B2" * 9 + "\n")
