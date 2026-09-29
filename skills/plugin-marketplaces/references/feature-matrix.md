@@ -57,4 +57,4 @@ Conformance probes: none yet.
 | E8 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120` (`marketplace.rs`, `plugin_id.rs`, `store.rs`) and probes on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
 | E9 | Copilot CLI plugin reference and probes on copilot 1.0.88 and 1.0.89; `docs/research/2026-09-27-other-harnesses.md`, `docs/research/2026-09-27-phase0-probes.md`, and `docs/research/2026-09-28-load-and-update-probes.md` P3 | probe |
 | E10 | probe P2; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
-| E11 | plan-2c with-skill runs of scenario 6; `tests/runs/2026-09-28-s6-r1-with-skill.md` | run |
+| E11 | plan-2c with-skill runs of scenario 6; `tests/runs/evidence/2026-09-28-s6-r1-with-skill-tool-results.jsonl` | run |

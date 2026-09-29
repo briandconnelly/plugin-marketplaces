@@ -49,7 +49,7 @@ export HOME="$T/home" XDG_CONFIG_HOME="$T/xdg" TMPDIR="$T/tmp" \
   ```
 
 - On macOS, deny outbound network traffic to a tool you only mean to run locally: `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))' <command>` [E5].
-- Run tools with stdin from `/dev/null`, so none waits for input.
+- Run tools with stdin from `/dev/null`, so none waits for input, as every probe did [E5] [E6].
 - Never send a prompt or open a session — `claude -p`, `codex exec`, `copilot -p`, an interactive session, or `copilot --acp` — to check a plugin: the throwaway variables do not isolate Copilot CLI's sign-in, and a session runs the plugin's code [E3] [E6].
 - Avoid `sensitive` `userConfig` values in checks: Claude Code stores them in the system keychain, which `CLAUDE_CONFIG_DIR` does not isolate [E3].
 
@@ -73,8 +73,8 @@ Check a clean export (`git archive HEAD | tar -x -C "$T/export"`) rather than a 
 | Copilot CLI | `copilot plugin install`: component count; `copilot plugin list`; `copilot skill list`; `copilot mcp list`; `copilot mcp get <server>` | none found |
 
 The table is from [E6].
-`codex debug prompt-input` starts a plugin's MCP servers but not its hooks, so on a plugin with no MCP servers it runs no plugin code [E6].
-Copilot CLI's `plugin`, `skill`, and `mcp` subcommands open no session, so they are safe to run under throwaway homes; only a prompt, an interactive session, or `copilot --acp` reaches the signed-in account [E6] [E3].
+In probe P1, `codex debug prompt-input` started the plugin's MCP server but not its `SessionStart` hook; that is one observation, not a guarantee, so keep running it on stand-in plugins only [E6].
+Copilot CLI's `plugin`, `skill`, and `mcp` subcommands opened no model session in the probes, which ran with outbound network denied; whether a command that fetches from GitHub uses the stored sign-in was not observed [E6] [E3].
 No command shows Codex's or Copilot CLI's view of a plugin's agents, or Copilot CLI's view of its hooks, so report those load checks as unproven rather than passed.
 To see what a server receives at start, check a stand-in plugin you wrote whose server records its arguments, not the plugin under review (R15).
 

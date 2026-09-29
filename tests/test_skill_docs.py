@@ -131,3 +131,17 @@ def test_the_source_type_table_matches_readers_json():
             )
     everything = {s for key, r in readers.items() if key != "$comment" for s in r["source_types"]}
     assert seen == everything
+
+
+@pytest.mark.parametrize("name", sorted(EXPECTED_REFS - {"freshness.md"}))
+def test_every_fact_bullet_cites_evidence(name):
+    # a set-level check misses an uncited line whose id is cited elsewhere; check each bullet
+    text = (REFS / name).read_text(encoding="utf-8")
+    body = text[: text.index("\n## Provenance\n")]
+    fence, uncited = False, []
+    for number, line in enumerate(body.splitlines(), start=1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence and line.lstrip().startswith("- ") and not EVIDENCE_CITE.search(line):
+            uncited.append(f"{name}:{number}: {line.strip()[:80]}")
+    assert uncited == []

@@ -93,4 +93,4 @@ Conformance probes: none yet.
 | E10 | https://code.claude.com/docs/en/plugins/host-marketplace, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §5 | docs |
 | E11 | plan-2b baselines s4-r4, s4-r7, s4-r8, and s4-r9: `claude plugin install --config` with a sensitive value tried the macOS keychain; `tests/runs/2026-09-28-baseline-summary-2b.md`, Isolation | run |
 | E12 | observed in plan 1 and recorded where the validator isolates it: `skills/plugin-marketplaces/scripts/mpcheck/checks_schema.py`, `_default_runner` | source |
-| E13 | plan-2c with-skill runs of scenario 6 on claude 2.1.284 (`install lint@acme-tools` succeeded and `details` showed `linter`; `install linter@acme-tools` gave not found); `tests/runs/2026-09-28-s6-r1-with-skill.md` and `tests/runs/2026-09-28-s6-r3-with-skill.md` | run |
+| E13 | plan-2c with-skill runs of scenario 6 on claude 2.1.284 (`install lint@acme-tools` succeeded and `details` showed `linter`; `install linter@acme-tools` gave not found); `tests/runs/evidence/2026-09-28-s6-r1-with-skill-tool-results.jsonl` and `tests/runs/evidence/2026-09-28-s6-r3-with-skill-tool-results.jsonl` | run |

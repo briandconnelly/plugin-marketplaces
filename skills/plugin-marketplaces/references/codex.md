@@ -34,9 +34,9 @@ Any other source, including Claude Code's `{"source": "github", …}` with or wi
 
 Codex reads one of two formats [E3]:
 
-- **Portable**: a root `plugin.json` that is a regular file (not a symlink) whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills come from `skills/` and MCP servers from `mcp.json`, and nothing in the manifest can move them.
+- **Portable**: a root `plugin.json` that is a regular file (not a symlink) whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills come from `skills/` and MCP servers from `mcp.json`, and nothing in the manifest can move them [E3].
   OpenAI-specific settings go under `extensions["com.openai"]`, which, when present, replaces `.codex-plugin/plugin.json` as the overlay rather than merging with it.
-- **Compatibility**: otherwise, the first of `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and `.cursor-plugin/plugin.json`; skills default to `skills/`, MCP to `.mcp.json`, hooks to `hooks/hooks.json`.
+- **Compatibility**: otherwise, the first of `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and `.cursor-plugin/plugin.json`; skills default to `skills/`, MCP to `.mcp.json`, hooks to `hooks/hooks.json` [E3].
 - Display metadata lives in an `interface` object (`displayName`, `shortDescription`, `longDescription`, `developerName`, `category`, `capabilities`, `websiteURL`, `defaultPrompt`, `brandColor`, `logo`, and others), in `.codex-plugin/plugin.json` or under `extensions["com.openai"]`; OpenAI's directory submission checks stricter limits than the CLI [E3] [E6].
 - A root `plugin.json` without the Agent Plugins `$schema` is ignored, and Codex falls back to the compatibility manifests [E6].
 - When a plugin carries both a portable root `plugin.json` and `.claude-plugin/plugin.json`, Codex installs the root manifest's version and reads `mcp.json`, not `.mcp.json` [E9] [E14].
