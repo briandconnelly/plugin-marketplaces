@@ -17,6 +17,7 @@ They are archived evidence, so they are exempt from this repo's one-sentence-per
 | [2026-09-28-plan-3-probes.md](2026-09-28-plan-3-probes.md) | Conformance probes' first runs on macOS and Linux, help text, entry `hooks` forms, and the first upstream check (hand-written record) | claude 2.1.284, codex-cli 0.157.1 and 0.158.0, copilot 1.0.89 |
 | [2026-09-28-documentation-reverification.md](2026-09-28-documentation-reverification.md) | Every fact cited to the 11 documentation pins re-read against the pages as fetched on 2026-09-28, the entry-versus-manifest name probe, and the edits made (hand-written record) | live docs; claude 2.1.284 |
 | [2026-09-29-openai-submission-page.md](2026-09-29-openai-submission-page.md) | Re-verification after OpenAI moved its manifest and `interface` field lists to the submission page (issue #6) (hand-written record) | live docs |
+| [2026-09-29-remote-level-probes.md](2026-09-29-remote-level-probes.md) | How git hosts and the npm registry answer the remote level's checks, annotated tags, and the calibration runs of `--remote` (hand-written record) | git 2.55.0, GitHub, npm registry |
 
 These reports are inputs, not references: the skill's references re-verify every fact they use and carry their own provenance.
 
