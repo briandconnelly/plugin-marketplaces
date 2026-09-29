@@ -11,7 +11,8 @@ reference lines), `broken` (the control failed, so the probe proves nothing), `e
 probe crashed or a tool command failed), `skipped` (a tool it needs is not installed).
 Help pins compare each tool's `--help` text with the copy under `tests/conformance/help/`.
 Exit 0 when nothing flipped, broke, errored, or changed; 1 otherwise; 2 on bad usage.
-With --require-tools (the weekly Action), a skipped probe or help pin also exits 1.
+With --require-tools (the weekly Action), a skipped probe or help pin also exits 1, and on a
+machine that cannot deny outbound traffic no tool runs: every check reports `error` instead.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ from typing import Protocol
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from conformance.probes import PROBES, Observation, Probe  # noqa: E402
-from conformance.sandbox import Result, Sandbox  # noqa: E402
+from conformance.sandbox import Result, Sandbox, network_denial  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -182,6 +183,45 @@ def sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def probe_report(only: list[str] | None, work: Path) -> dict:
+    sandbox = Sandbox(work / "versions")
+    report = {
+        "versions": versions(sandbox),
+        "network_denied": sandbox.denial is not None,
+        "probes": [],
+        "help": [],
+    }
+    for probe in PROBES:
+        if only and probe.id not in only:
+            continue
+        probe_dir = work / probe.id
+        probe_dir.mkdir()
+        result = scrub(classify(probe, lambda p=probe, d=probe_dir: p.run(d)), work)
+        report["probes"].append(asdict(result))
+        print(f"{result.status:8} {probe.id}", file=sys.stderr)
+    if not only:
+        help_box = Sandbox(work / "help")
+        report["help"] = [asdict(check_help(a, help_box)) for a in HELP_COMMANDS]
+    return report
+
+
+def unisolated_report(only: list[str] | None) -> dict:
+    """Every check as an error, run by nothing: this machine cannot deny outbound traffic."""
+    why = "not run: no network isolation available on this machine (sandbox-exec or unshare -rn)"
+    probes = [p for p in PROBES if not only or p.id in only]
+    return {
+        "versions": {tool: "not run" for tool in VERSION_COMMANDS},
+        "network_denied": False,
+        "probes": [
+            asdict(ProbeResult(p.id, "error", p.fact, [list(a) for a in p.anchors], why))
+            for p in probes
+        ],
+        "help": []
+        if only
+        else [asdict(HelpResult(" ".join(a), "error", why)) for a in HELP_COMMANDS],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", nargs="+", metavar="ID")
@@ -190,7 +230,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repin-help", action="store_true")
     parser.add_argument("--evidence")
     parser.add_argument(
-        "--require-tools", action="store_true", help="count a skipped probe as a failure (CI)"
+        "--require-tools",
+        action="store_true",
+        help="CI: count a skipped probe as a failure, and run no tool without network isolation",
     )
     args = parser.parse_args(argv)
     known = {p.id for p in PROBES}
@@ -202,24 +244,11 @@ def main(argv: list[str] | None = None) -> int:
             if not args.evidence:
                 parser.error("--repin-help needs --evidence docs/research/<file>.md")
             return repin_help(args.evidence, work)
-        sandbox = Sandbox(work / "versions")
-        report = {
-            "versions": versions(sandbox),
-            "network_denied": sandbox.denial is not None,
-            "probes": [],
-            "help": [],
-        }
-        for probe in PROBES:
-            if args.only and probe.id not in args.only:
-                continue
-            probe_dir = work / probe.id
-            probe_dir.mkdir()
-            result = scrub(classify(probe, lambda p=probe, d=probe_dir: p.run(d)), work)
-            report["probes"].append(asdict(result))
-            print(f"{result.status:8} {probe.id}", file=sys.stderr)
-        if not args.only:
-            help_box = Sandbox(work / "help")
-            report["help"] = [asdict(check_help(a, help_box)) for a in HELP_COMMANDS]
+        if args.require_tools and network_denial() is None:
+            # fail closed: never run freshly installed CLIs with outbound access on CI
+            report = unisolated_report(args.only)
+        else:
+            report = probe_report(args.only, work)
     if args.json:
         args.json.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     text = markdown(report)

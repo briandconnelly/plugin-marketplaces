@@ -3,6 +3,7 @@ help pins, and the link between each probe and the reference lines it re-checks 
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -318,3 +319,21 @@ def test_every_probe_holds_against_the_installed_tools(tmp_path):
         work.mkdir()
         result = run.classify(p, lambda p=p, w=work: p.run(w))
         assert result.status in ("held", "skipped"), (p.id, result.status, result.detail)
+
+
+def test_ci_mode_runs_no_tool_without_network_isolation(tmp_path, monkeypatch):
+    # Copilot review of PR #5: under --require-tools (the weekly Action) a machine that cannot
+    # deny outbound traffic must not run the CLIs at all, and must say so as a finding
+    def no_tool(*_args, **_kwargs):
+        raise AssertionError("a tool was about to run without network isolation")
+
+    monkeypatch.setattr(run, "network_denial", lambda: None)
+    monkeypatch.setattr(run, "Sandbox", no_tool)
+    out = tmp_path / "report.json"
+    assert run.main(["--require-tools", "--json", str(out)]) == 1
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["network_denied"] is False
+    statuses = {r["status"] for r in report["probes"] + report["help"]}
+    assert statuses == {"error"}
+    assert len(report["probes"]) == len(PROBES) and len(report["help"]) == len(run.HELP_COMMANDS)
+    assert all("network isolation" in r["detail"] for r in report["probes"])
