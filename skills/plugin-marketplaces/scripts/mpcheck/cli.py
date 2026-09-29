@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--remote",
         action="store_true",
-        help="check that remote pins exist upstream (contacts each source's git host or registry)",
+        help="check that remote pins exist upstream; contacts each source's git host, npm registry, or archive host (archives up to 512 MiB)",
     )
     args = parser.parse_args(argv)
     if not args.root.is_dir():

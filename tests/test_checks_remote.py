@@ -446,3 +446,117 @@ def test_an_unreadable_manifest_at_the_pin_fails(tmp_path, upstream):
     sha = git(src, "rev-parse", "HEAD")
     status, _, found = remote(catalog(tmp_path / "m", url_entry("beta", upstream["url"], sha)))
     assert status == Status.FAILED and found == {"remote.manifest-invalid": ["error"]}
+
+
+# ---- Copilot review of PR #8
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ext::sh -c touch% /tmp/pwned",
+        "fd::17",
+        "transport::https://example.com/r.git",
+        "weird:r.git",
+    ],
+)
+def test_only_documented_git_url_forms_reach_git(tmp_path, monkeypatch, url):
+    # remote helpers run commands when the caller's git allows them (protocol.ext.allow)
+    root = catalog(tmp_path / "m", url_entry("x", url, "a" * 40))
+    seen: list[list[str]] = []
+    real_run = subprocess.run
+
+    def counting(argv, *args, **kwargs):
+        if argv[:1] == ["git"] and argv[1:2] != ["init"]:
+            seen.append(argv)
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", counting)
+    assert remote(root)[0] == Status.SKIPPED and seen == []
+
+
+def test_git_subdir_accepts_github_shorthand(tmp_path, upstream, monkeypatch):
+    # Claude Code documents `url` as "a full git URL or GitHub owner/repo shorthand"
+    config = tmp_path / "gitconfig"
+    config.write_text(
+        f'[url "{Path(upstream["dir"]).as_uri()}/"]\n\tinsteadOf = https://github.com/acme/\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    entry = url_entry("gamma", "acme/beta", upstream["one"], path="plugins/gamma", version="2.0.0")
+    assert remote(catalog(tmp_path / "m", entry))[0::2] == (Status.PASSED, {})
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"source": "npm", "package": "@acme/fmt", "version": "^1.2.0"},
+        {"source": "npm", "package": "@acme/fmt", "version": "latest"},
+        {"source": "archive", "url": "https://example.com/p.zip", "sha256": "not-a-digest"},
+    ],
+)
+def test_pins_the_local_level_rejects_are_not_fetched(tmp_path, source):
+    contacted: list[str] = []
+
+    def fetch(url: str) -> bytes:
+        contacted.append(url)
+        return b"{}"
+
+    root = catalog(tmp_path / "m", {"name": "x", "source": source, "description": "x"})
+    assert (remote(root, fetch)[0], contacted) == (Status.SKIPPED, [])
+
+
+def test_unpinned_entries_tracking_different_refs_are_each_checked(tmp_path, upstream):
+    root = catalog(
+        tmp_path / "m",
+        unpinned("beta", upstream["url"], "main"),
+        unpinned("beta", upstream["url"], "no-such-branch"),
+    )
+    assert remote(root)[0::2] == (Status.FAILED, {"remote.unpinned-ref-missing": ["error"]})
+
+
+def commit_manifests(upstream: dict[str, str], files: dict[str, bytes]) -> str:
+    src = Path(upstream["dir"]).parent / "src"
+    for rel, body in files.items():
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_bytes(body)
+    git(src, "add", "-A")
+    git(src, "commit", "-qm", "manifests")
+    git(src, "push", "-q", "-f", upstream["url"], "HEAD:refs/heads/manifests")
+    return git(src, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        # a present manifest without a string name cannot match the entry (R8)
+        (
+            {".claude-plugin/plugin.json": b'{"version": "1.0.0"}'},
+            {"remote.name-mismatch": ["error"]},
+        ),
+        # every reader's manifest counts: a valid Claude one must not hide a wrong portable one
+        (
+            {
+                ".claude-plugin/plugin.json": b'{"name": "beta", "version": "1.0.0"}',
+                "plugin.json": b'{"name": "beta", "version": "9.9.9"}',
+            },
+            {"remote.version-mismatch": ["error"]},
+        ),
+        # invalid UTF-8 is an unreadable manifest, not a validator crash
+        (
+            {".claude-plugin/plugin.json": b'{"name": "\xff"}'},
+            {"remote.manifest-invalid": ["error"]},
+        ),
+    ],
+)
+def test_every_manifest_at_the_pin_is_read_strictly(tmp_path, upstream, files, expected):
+    sha = commit_manifests(upstream, files)
+    entry = url_entry("beta", upstream["url"], sha, version="1.0.0")
+    assert remote(catalog(tmp_path / "m", entry))[0::2] == (Status.FAILED, expected)
+
+
+@pytest.mark.parametrize("document", [b"[]", b'{"versions": []}', b"\xff\xfe"])
+def test_an_odd_registry_document_is_inconclusive(tmp_path, document):
+    pages = {f"{NPM}/@acme%2ffmt/1.2.0": 404, f"{NPM}/@acme%2ffmt": document}
+    status, _, found = remote(catalog(tmp_path / "m", npm_entry("1.2.0")), Fetcher(pages))
+    assert (status, found) == (Status.INCONCLUSIVE, {"remote.inconclusive": ["warning"]})

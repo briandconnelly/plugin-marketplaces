@@ -4,6 +4,7 @@ from pathlib import Path
 
 import check_marketplace
 import mpcheck.cli
+import pytest
 from helpers import read, write
 from mpcheck.model import Severity, Status
 from mpcheck.run import run_checks
@@ -98,3 +99,11 @@ def test_policy_is_skipped_not_passed_when_no_reader_is_declared_or_inferred(tmp
     statuses = run_checks(tmp_path, use_claude=False).statuses
     assert statuses["policy"][0] == Status.SKIPPED
     assert "no reader" in statuses["policy"][1]
+
+
+def test_the_remote_flag_names_every_kind_of_host_it_contacts(capsys):
+    # Copilot review of PR #8: archive downloads were missing from the network warning
+    with pytest.raises(SystemExit):
+        mpcheck.cli.main(["--help"])
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert all(word in help_text for word in ("git host", "registry", "archive"))

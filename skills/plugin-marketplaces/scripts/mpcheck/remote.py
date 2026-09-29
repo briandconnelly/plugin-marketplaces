@@ -26,12 +26,17 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mpcheck.checks_local import EXACT_SEMVER_RE, SHA256_RE, SHA_RE
 from mpcheck.discover import Catalog, Repo
 from mpcheck.model import Finding, Severity, Status
 from mpcheck.readers import GIT_SOURCE_TYPES, source_type
 
-SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+# the URL forms git documents for its built-in transports; anything else, including a remote
+# helper (`ext::`, `fd::`), never reaches git, whatever the caller's protocol.allow says
+GIT_URL_RE = re.compile(
+    r"^(?:(?:https?|ssh|git|file)://[^\s]+|[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[^\s:][^\s]*)$"
+)
 HTTP_ERRORS = (urllib.error.URLError, OSError, ValueError, http.client.HTTPException)
 
 GIT_TIMEOUT = 120
@@ -90,7 +95,10 @@ def http_sha256(url: str) -> str:
 def git_url(source: dict[str, object]) -> str:
     if source.get("source") == "github":
         return f"https://github.com/{source.get('repo')}.git"
-    return str(source.get("url", ""))
+    url = str(source.get("url", ""))
+    if source.get("source") == "git-subdir" and REPO_RE.fullmatch(url):
+        return f"https://github.com/{url}.git"  # documented `owner/repo` shorthand
+    return url
 
 
 @dataclass
@@ -139,7 +147,11 @@ def checkable(kind: str, source: dict[str, object]) -> bool:
             isinstance(source.get("repo"), str) and REPO_RE.fullmatch(str(source["repo"]))
         ):
             return False
-        if kind != "github" and not safe(source.get("url")):
+        if kind != "github" and not (
+            safe(source.get("url"))
+            and ("::" not in git_url(source))
+            and GIT_URL_RE.fullmatch(git_url(source))
+        ):
             return False
         if "sha" in source and not (
             isinstance(source["sha"], str) and SHA_RE.fullmatch(source["sha"])
@@ -150,14 +162,20 @@ def checkable(kind: str, source: dict[str, object]) -> bool:
         registry = source.get("registry")
         return (
             safe(source.get("package"))
-            and safe(source.get("version"))
+            and isinstance(source.get("version"), str)
+            and bool(EXACT_SEMVER_RE.fullmatch(str(source.get("version"))))
             and (
                 registry is None
                 or (isinstance(registry, str) and registry.startswith(("https://", "http://")))
             )
         )
     if kind == "archive":
-        return isinstance(source.get("url"), str) and isinstance(source.get("sha256"), str)
+        digest = source.get("sha256")
+        return (
+            isinstance(source.get("url"), str)
+            and isinstance(digest, str)
+            and bool(SHA256_RE.fullmatch(digest))
+        )
     return False
 
 
@@ -172,7 +190,15 @@ def groups_of(catalogs: list[Catalog]) -> list[Group]:
             if not checkable(kind, source):
                 continue  # malformed: the local level reports it, and git must never see it
             if kind in GIT_SOURCE_TYPES:
-                key = (kind, git_url(source), str(source.get("sha")), str(source.get("path", "")))
+                # an unpinned source installs whatever its ref names, so each ref is its own check
+                ref = "" if "sha" in source else str(source.get("ref", ""))
+                key = (
+                    kind,
+                    git_url(source),
+                    str(source.get("sha")),
+                    str(source.get("path", "")),
+                    ref,
+                )
             elif kind == "npm":
                 key = (
                     kind,
@@ -375,61 +401,67 @@ def check_git(group: Group) -> tuple[Status, list[Finding]]:
                 )
             )
             return Status.FAILED, findings
-        path, manifest = read_manifest(work, base)
-    if path is not None and manifest is None:
-        message = (
-            f"{path} at the pinned commit {sha[:12]} is not a JSON object, so no tool can load it"
-        )
-        return Status.FAILED, [
-            *findings,
-            finding("remote.manifest-invalid", Severity.ERROR, group.uses[0], message, "R4"),
-        ]
+        manifests = read_manifests(work, base)
     failed = False
-    if manifest is not None:
+    for path, manifest in manifests:
+        if manifest is None:
+            failed = True
+            message = f"{path} at the pinned commit {sha[:12]} is not a UTF-8 JSON object, so no tool can load it"
+            findings.append(
+                finding("remote.manifest-invalid", Severity.ERROR, group.uses[0], message, "R4")
+            )
+            continue
+        declared, released = manifest.get("name"), manifest.get("version")
         for use in group.uses:
             name, version = use.entry.get("name"), use.entry.get("version")
-            if isinstance(manifest.get("name"), str) and name != manifest["name"]:
+            if not isinstance(declared, str) or name != declared:
                 failed = True
                 findings.append(
                     finding(
                         "remote.name-mismatch",
                         Severity.ERROR,
                         use,
-                        f"entry {name!r} pins a plugin whose manifest names it {manifest['name']!r}",
+                        f"entry {name!r} pins a plugin whose {path} names it {declared!r}",
                         "R8",
                     )
                 )
-            if (
-                isinstance(version, str)
-                and isinstance(manifest.get("version"), str)
-                and version != manifest["version"]
-            ):
+            if isinstance(version, str) and isinstance(released, str) and version != released:
                 failed = True
                 findings.append(
                     finding(
                         "remote.version-mismatch",
                         Severity.ERROR,
                         use,
-                        f"entry {name!r} records version {version!r} but the manifest at the pin says {manifest['version']!r}",
+                        f"entry {name!r} records version {version!r} but {path} at the pin says {released!r}",
                         "R6",
                     )
                 )
     return (Status.FAILED if failed else Status.PASSED), findings
 
 
-def read_manifest(work: Path, base: str) -> tuple[str | None, dict[str, object] | None]:
-    """(path, data) for the first manifest at the pin; data is None when it is unreadable,
-    and path is None when there is none, which is allowed (an entry can be the manifest)."""
+def read_manifests(work: Path, base: str) -> list[tuple[str, dict[str, object] | None]]:
+    """(path, data) for every manifest at the pin, since each is some reader's authority;
+    data is None when the file is not UTF-8 JSON holding an object. None found is allowed
+    (an entry can be its own manifest)."""
+    found: list[tuple[str, dict[str, object] | None]] = []
     for rel in MANIFESTS:
         path = f"{base}/{rel}" if base else rel
-        shown = git("show", f"FETCH_HEAD:{path}", cwd=work)
-        if shown.returncode == 0:
-            try:
-                data = json.loads(shown.stdout)
-            except json.JSONDecodeError:
-                return path, None
-            return path, data if isinstance(data, dict) else None
-    return None, None
+        shown = subprocess.run(
+            ["git", "show", f"FETCH_HEAD:{path}"],
+            cwd=work,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=GIT_TIMEOUT,
+            check=False,
+        )
+        if shown.returncode != 0:
+            continue
+        try:
+            data = json.loads(shown.stdout.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            data = None
+        found.append((path, data if isinstance(data, dict) else None))
+    return found
 
 
 # ---- npm and archive
@@ -447,14 +479,17 @@ def check_npm(group: Group, fetch: Fetch) -> tuple[Status, list[Finding]]:
         if exc.status != 404:
             return inconclusive(group, f"the registry did not answer ({exc})")
     try:
-        document = json.loads(fetch(f"{registry}/{package}"))
+        document = json.loads(fetch(f"{registry}/{package}").decode("utf-8"))
     except FetchError as exc:
         return inconclusive(
             group, f"the registry does not show the package ({exc}); it may be private"
         )
-    except json.JSONDecodeError:
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        document = None
+    versions = document.get("versions") if isinstance(document, dict) else None
+    if not isinstance(versions, dict):
         return inconclusive(group, "the registry returned an unreadable package document")
-    if version in (document.get("versions") or {}):
+    if version in versions:
         return Status.PASSED, []
     message = f"npm package {source.get('package')!r} has no published version {version!r}"
     return Status.FAILED, [

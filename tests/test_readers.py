@@ -50,7 +50,7 @@ def test_copilot_honours_plugin_root():
     assert load_readers()["copilot-cli"].honours_plugin_root is True
 
 
-BIDI = ("‎", "‏", "‪", "‮", "⁦", "⁩")
+BIDI = ("\u061c", "\u200e", "\u200f", "\u202a", "\u202e", "\u2066", "\u2069")
 
 
 def test_claude_names_follow_the_documented_character_rules():
