@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "plugin-marketplaces",
+  "version": "0.1.0",
+  "description": "Create, audit, maintain, and release user-hosted plugin marketplaces for Claude Code, Codex, and GitHub Copilot CLI.",
+  "author": {"name": "Brian Connelly"},
+  "homepage": "https://github.com/briandconnelly/plugin-marketplaces",
+  "repository": "https://github.com/briandconnelly/plugin-marketplaces",
+  "license": "MIT",
+  "keywords": ["plugins", "marketplace", "claude-code", "codex", "copilot-cli", "agent-plugins"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "plugin-marketplaces",
+  "interface": {"displayName": "Plugin marketplaces"},
+  "plugins": [
+    {
+      "name": "plugin-marketplaces",
+      "source": {"source": "local", "path": "./"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Developer Tools",
+      "description": "Skill for user-hosted plugin marketplaces. It ships a Python validator that the agent runs on request; no hooks, MCP servers, LSP servers, or bin/, and no external services."
+    }
+  ]
+}
