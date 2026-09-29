@@ -43,7 +43,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each cell cites a row of the
 ## Provenance
 
 Verified against: claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89 on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `codex-migrates-described-commands`, `codex-skips-github-source`, `copilot-rejects-catalog-with-git-subdir`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |

@@ -36,7 +36,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 ## Provenance
 
 Verified against: copilot 1.0.88 (phase-0 and pluginRoot probes) and 1.0.89 (plan-2c probes) on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `copilot-offers-commands-as-skills`, `copilot-prefers-github-catalog`, `copilot-rejects-catalog-with-git-subdir`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |

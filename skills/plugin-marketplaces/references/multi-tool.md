@@ -46,7 +46,7 @@ Each tool ignores the other pair, so the two manifests must agree on `name` (R8)
 ## Provenance
 
 Verified against: claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89 on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `codex-reads-portable-root`, `codex-skips-github-source`, `converted-command-reaches-every-tool`, `copilot-portable-root-drops-commands`, `copilot-rejects-catalog-with-git-subdir`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |

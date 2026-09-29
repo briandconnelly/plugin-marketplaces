@@ -77,7 +77,7 @@ Relative paths do not resolve when the catalog itself is fetched as a bare `mark
 ## Provenance
 
 Verified against: claude 2.1.283 (documentation reading) and 2.1.284 (probes) on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `claude-lists-commands-as-skills`, `claude-reads-adapter-not-portable-root`, `claude-validate-misses-entry-hooks-path`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |

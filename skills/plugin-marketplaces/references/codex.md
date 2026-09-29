@@ -69,7 +69,7 @@ Codex reads one of two formats [E3]:
 ## Provenance
 
 Verified against: codex-cli 0.157.1 (source reading and probes) on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `codex-migrates-described-commands`, `codex-prefers-agents-catalog`, `codex-reads-claude-catalog`, `codex-reads-portable-root`, `codex-skips-github-source`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
