@@ -102,8 +102,16 @@ def verdict(reply: str) -> str:
     return word.strip("`*_.,:;\"'").lower()
 
 
-def passed(expected: str, chosen: str) -> bool:
-    return chosen == SKILL_NAME if expected == SKILL_NAME else chosen != SKILL_NAME
+def offered(prompt: str) -> set[str]:
+    """The skill names a rendered prompt lists."""
+    return set(re.findall(r"^- `([^`]+)`:", prompt, re.M))
+
+
+def passed(expected: str, chosen: str, names: set[str]) -> bool:
+    if expected == SKILL_NAME:
+        return chosen == SKILL_NAME
+    # a negative case needs a real answer: `none` or another offered skill, never an empty reply
+    return chosen != SKILL_NAME and (chosen == "none" or chosen in names)
 
 
 def record(out: Path, tasks: Path, dest: Path) -> Path:
@@ -115,10 +123,11 @@ def record(out: Path, tasks: Path, dest: Path) -> Path:
     models: set[str] = set()
     for run in sorted(out.glob("*-r*"), key=lambda p: (p.name[0] != "p", p.name)):
         case = json.loads((run / "case.json").read_text(encoding="utf-8"))
-        t = load(find(tasks, (run / "prompt.txt").read_text(encoding="utf-8")))
+        prompt = (run / "prompt.txt").read_text(encoding="utf-8")
+        t = load(find(tasks, prompt))
         models.update(t.models)
         chosen = verdict(t.report)
-        ok = passed(case["expected"], chosen)
+        ok = passed(case["expected"], chosen, offered(prompt))
         totals[case["id"][0]][0] += ok
         totals[case["id"][0]][1] += 1
         reply = " ".join(t.report.split()).replace("|", "\\|")
@@ -130,7 +139,7 @@ def record(out: Path, tasks: Path, dest: Path) -> Path:
 Date: {datetime.date.today().isoformat()}.
 Cases: `tests/trigger_cases.md`; distractors: `tests/fixtures/trigger/distractors.json`; description: `skills/plugin-marketplaces/SKILL.md` frontmatter at this commit.
 Each prompt was dispatched, exactly as `tests/eval/trigger.py prepare` wrote it, to a fresh subagent (model: {", ".join(sorted(models))}).
-A positive case passes when the reply chooses `{SKILL_NAME}`; a negative case passes when it does not.
+A positive case passes when the reply chooses `{SKILL_NAME}`; a negative case passes when it chooses `none` or another offered skill.
 
 Positive: {totals["p"][0]} of {totals["p"][1]} passed.
 Negative: {totals["n"][0]} of {totals["n"][1]} passed.

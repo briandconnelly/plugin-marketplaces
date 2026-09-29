@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import importlib.util
 import io
 import json
@@ -81,12 +82,30 @@ def skill_tree() -> str:
 
 def skill_is_committed() -> bool:
     status = subprocess.run(
-        ["git", "-C", str(ROOT), "status", "--porcelain", "--", SKILL_PATH, "pyproject.toml"],
+        [
+            "git",
+            "-C",
+            str(ROOT),
+            "status",
+            "--porcelain",
+            "--",
+            SKILL_PATH,
+            "pyproject.toml",
+            "uv.lock",
+        ],
         check=True,
         capture_output=True,
         text=True,
     ).stdout
     return status == ""
+
+
+def lock_digest() -> str:
+    """SHA-256 of the committed uv.lock the validator's dependencies come from."""
+    lock = subprocess.run(
+        ["git", "-C", str(ROOT), "show", "HEAD:uv.lock"], check=True, capture_output=True
+    ).stdout
+    return hashlib.sha256(lock).hexdigest()
 
 
 def install_skill(run: Path) -> tuple[Path, Path, str]:
@@ -98,23 +117,32 @@ def install_skill(run: Path) -> tuple[Path, Path, str]:
         k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")
     }
     venv = run / "validator"
+    python = str(venv / "bin" / "python")
     with tempfile.TemporaryDirectory(prefix="validator-src-") as src:
-        _extract("HEAD", Path(src) / "repo")
-        subprocess.run(["uv", "venv", "--quiet", str(venv)], env=env, check=True)
+        repo, pinned = Path(src) / "repo", Path(src) / "requirements.txt"
+        _extract("HEAD", repo)
+        # runtime dependencies from the committed uv.lock, so every run installs the same set
         subprocess.run(
             [
                 "uv",
-                "pip",
-                "install",
+                "export",
+                "--frozen",
+                "--no-dev",
+                "--no-emit-project",
+                "--no-hashes",
                 "--quiet",
-                "--compile-bytecode",
-                "--python",
-                str(venv / "bin" / "python"),
-                f"{src}/repo",
+                "--project",
+                str(repo),
+                "--output-file",
+                str(pinned),
             ],
             env=env,
             check=True,
         )
+        subprocess.run(["uv", "venv", "--quiet", str(venv)], env=env, check=True)
+        install = ["uv", "pip", "install", "--quiet", "--compile-bytecode", "--python", python]
+        subprocess.run([*install, "-r", str(pinned)], env=env, check=True)
+        subprocess.run([*install, "--no-deps", str(repo)], env=env, check=True)
     return skill, venv / "bin" / "check-marketplace", tree
 
 
@@ -192,7 +220,12 @@ def prepare(
             "prompt_file": "prompt.txt",
         }
         if skill is not None:
-            manifest.update(skill=str(skill), validator=str(validator), skill_tree=tree_of_skill)
+            manifest.update(
+                skill=str(skill),
+                validator=str(validator),
+                skill_tree=tree_of_skill,
+                lock_sha256=lock_digest(),
+            )
         (run / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         made.append(run)
     return made

@@ -85,7 +85,7 @@ The final review's fixes (commit after `6f6d20f`) then made the command-conversi
 ## Findings left open
 
 - Several s4 reports state behaviour taken from the references without saying so (criterion 5 in three runs); SKILL.md's port workflow already asks for a citation per claim, so the next change is probably a report template in `validation.md`.
-- Three s4 arms read `copilot-cli.md` as saying Copilot CLI expands `${PLUGIN_ROOT}` in server arguments at launch; the reference says only that the variable is set in the server's environment, and one line should say that the arguments themselves are shown unexpanded and their expansion at launch is unobserved.
+- Three s4 arms read the references as saying Copilot CLI expands `${PLUGIN_ROOT}` in server arguments at launch; after the Codex review of PR #4, `copilot-cli.md` and `multi-tool.md` now say the arguments are shown unexpanded and their expansion at launch was not observed.
 - The s4 fixture's `server/run.sh` runs a `review_server` module the fixture does not ship; every arm reported it, and it does not affect scoring.
 
 ## Isolation

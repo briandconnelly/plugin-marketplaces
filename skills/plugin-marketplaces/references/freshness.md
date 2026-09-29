@@ -7,9 +7,9 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 
 Every reference ends with a `## Provenance` section holding:
 
-- a line `Verified against: <tool and version, …> on <date>.`, naming the versions its facts were observed or read against;
-- a line naming the conformance probes that re-check its facts, or `none yet`;
-- a table of evidence rows `| E<n> | <evidence> | <kind> |`, where kind is `docs` (read in published documentation), `source` (read in a tool's source at a named commit), `probe` (observed by running the tool), or `run` (observed in a recorded evaluation run).
+- a line `Verified against: <tool and version, …> on <date>.`, naming the versions its facts were observed or read against [E1];
+- a line naming the conformance probes that re-check its facts, or `none yet` [E1];
+- a table of evidence rows `| E<n> | <evidence> | <kind> |`, where kind is `docs` (read in published documentation), `source` (read in a tool's source at a named commit), `probe` (observed by running the tool), or `run` (observed in a recorded evaluation run) [E1].
 
 Each fact in the reference cites one or more rows as `[E<n>]`, and a test in this skill's repository fails when a citation, a row, or a cited repository path is missing [E1].
 

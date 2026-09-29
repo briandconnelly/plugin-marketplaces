@@ -1,7 +1,19 @@
 import json
 
 import pytest
-from trigger import CASES, SKILL_NAME, cases, catalog, description, prepare, record, render, verdict
+from trigger import (
+    CASES,
+    SKILL_NAME,
+    cases,
+    catalog,
+    description,
+    offered,
+    passed,
+    prepare,
+    record,
+    render,
+    verdict,
+)
 
 
 def test_the_cases_come_from_the_trigger_file():
@@ -88,3 +100,14 @@ def test_record_scores_every_reply(tmp_path):
     assert "| p2 | 1 | plugin-marketplaces | fastmcp | FAIL |" in doc
     assert "| n1 | 1 | none | plugin-marketplaces | FAIL |" in doc
     assert "claude-opus-5-5" in doc
+
+
+def test_a_negative_case_passes_only_on_none_or_an_offered_skill():
+    names = offered(render(cases(CASES.read_text(encoding="utf-8"))[6], catalog(1)))
+    assert SKILL_NAME in names and "fastmcp" in names and len(names) == 8
+    assert passed("none", "none", names)
+    assert passed("none", "fastmcp", names)
+    assert not passed("none", "", names)  # an empty reply is not an answer
+    assert not passed("none", "made-up-skill", names)
+    assert not passed("none", SKILL_NAME, names)
+    assert passed(SKILL_NAME, SKILL_NAME, names)

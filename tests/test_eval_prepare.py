@@ -102,3 +102,25 @@ def test_a_with_skill_run_refuses_an_uncommitted_skill(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as stop:
         main([str(tmp_path), "s2", "--arm", "with-skill", "--session-context", "x"])
     assert stop.value.code == 2 and not list(tmp_path.iterdir())
+
+
+def test_a_with_skill_validator_is_installed_from_the_committed_lock(tmp_path):
+    import hashlib
+    import tomllib
+
+    (run,) = prepare(tmp_path, "s7", 1, "with-skill", "test session", tools=TOOLS)
+    manifest = json.loads((run / "manifest.json").read_text())
+    lock = subprocess.run(
+        ["git", "-C", str(ROOT), "show", "HEAD:uv.lock"], capture_output=True, check=True
+    ).stdout
+    assert manifest["lock_sha256"] == hashlib.sha256(lock).hexdigest()
+    locked = {p["name"]: p["version"] for p in tomllib.loads(lock.decode())["package"]}
+    python = Path(manifest["validator"]).parent / "python"
+    for package in ("jsonschema", "referencing", "rpds-py"):
+        installed = subprocess.run(
+            [str(python), "-c", f"import importlib.metadata as m; print(m.version('{package}'))"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert installed == locked[package], package

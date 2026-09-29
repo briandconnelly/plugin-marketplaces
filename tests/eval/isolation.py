@@ -50,6 +50,23 @@ CLI_ALLOWED = {
 CLI_LOCAL = {"codex": {("debug", "prompt-input"), ("app-server", "generate-json-schema")}}
 # Global options whose next word is a value, not the subcommand.
 OPTIONS_WITH_VALUE = {"--plugin-dir", "--disable", "--enable", "-c", "--config"}
+# uv/uvx options whose next word is a value, not the launched command.
+UV_OPTIONS_WITH_VALUE = {
+    "--from",
+    "--with",
+    "--with-editable",
+    "--with-requirements",
+    "--python",
+    "-p",
+    "--directory",
+    "--project",
+    "--env-file",
+    "--index",
+    "--default-index",
+    "--extra",
+    "--group",
+    "--package",
+}
 HELP_WORDS = {"--version", "-V", "-v", "--help", "-h"}
 PROMPT_FLAGS = {"-p", "--print", "--prompt"}
 SYSTEM_PREFIXES = (
@@ -402,9 +419,26 @@ class Checker:
             if not (target and _inside(target, self.layout.work)):
                 # uv writes its cache (and may fetch packages) outside WORKDIR by default
                 self.flag("outside-write", f"{name} cache: {' '.join(args)[:100]}")
+            launched = self.uv_launched(args)
+            if launched and PurePosixPath(launched[0]).name in CLI_VARS:
+                # `uv run codex …` and `uvx … claude …` launch the CLI; check it as if bare
+                self.cli(PurePosixPath(launched[0]).name, launched[1:], shell, inline)
         if name in CLI_VARS:
             self.cli(name, args[1:], shell, inline)
         self.paths(name, args, shell)
+
+    @staticmethod
+    def uv_launched(args: list[str]) -> list[str]:
+        """The command `uv run` or `uvx` launches, after its own options; [] when none."""
+        rest = args[1:]
+        if PurePosixPath(args[0]).name == "uv":
+            if rest[:1] != ["run"]:
+                return []
+            rest = rest[1:]
+        i = 0
+        while i < len(rest) and rest[i].startswith("-"):
+            i += 2 if rest[i] in UV_OPTIONS_WITH_VALUE else 1
+        return rest[i:]
 
     def unwrap(self, args: list[str], inline: dict[str, str]) -> list[str]:
         """Strip wrappers such as `env -u X`, `timeout 60`, and `perl -e '... exec @ARGV'`."""

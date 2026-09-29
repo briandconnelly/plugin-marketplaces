@@ -276,3 +276,14 @@ def test_uv_writes_its_cache_outside_workdir_unless_told_otherwise():
     assert kinds(f"export UV_CACHE_DIR=/R/s2-r1/repo/.tool-homes/uv && {run}") == []
     assert kinds("cd /R/s2-r1/repo && uvx check-marketplace .") == ["outside-write"]
     assert kinds("uv --version") == []
+
+
+def test_a_cli_launched_through_uv_is_checked_like_a_bare_one():
+    cache = "UV_CACHE_DIR=/R/s2-r1/repo/.tool-homes/uv"
+    assert kinds(f"cd /R/s2-r1/repo && {cache} uv run codex exec hi") == ["cli-prompt", "cli-env"]
+    assert kinds(f"cd /R/s2-r1/repo && {cache} uvx --from pkg --with x claude -p hi") == [
+        "cli-prompt",
+        "cli-env",
+    ]
+    isolated = "CODEX_HOME=/R/s2-r1/repo/.tool-homes/codex"
+    assert kinds(f"cd /R/s2-r1/repo && {cache} {isolated} uv run codex plugin list") == []

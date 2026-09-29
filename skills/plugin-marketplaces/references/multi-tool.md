@@ -14,7 +14,7 @@ A dual-packaged plugin has a portable root `plugin.json` and `mcp.json` and a Cl
 | Copilot CLI | root `plugin.json` | `mcp.json` |
 
 The table is from [E1].
-Each tool ignores the other pair, so the two manifests must agree on `name` (R8) and `version` (R6), and the two MCP files must declare the same servers.
+Each tool ignores the other pair, so the two manifests must agree on `name` (R8) and `version` (R6), and a server declared in only one of the two MCP files is available only in the tools that read that file.
 
 ## Writing the pair
 
@@ -26,7 +26,7 @@ Each tool ignores the other pair, so the two manifests must agree on `name` (R8)
 ## What adding the portable pair changes
 
 - Without a root `plugin.json`, Codex and Copilot CLI read the Claude-format manifest: Codex migrates each command with a `description` into a `source-command-<name>` skill and Copilot CLI offers commands as skills, but MCP server arguments keep `${CLAUDE_PLUGIN_ROOT}` literally, so a server started from a path under it cannot start [E6] [E8] [E9].
-- With a root `plugin.json`, both tools read only the portable package: MCP servers from `mcp.json` get a real `${PLUGIN_ROOT}`, and `commands/` is no longer read, so commands stop reaching Codex and Copilot CLI users [E1] [E7].
+- With a root `plugin.json`, both tools read only the portable package and configure MCP servers from `mcp.json`: Codex gives each server a real `PLUGIN_ROOT` and `PLUGIN_DATA` and the installed directory as its working directory, while Copilot CLI sets `PLUGIN_ROOT` in the server's environment and shows `${PLUGIN_ROOT}` in its arguments unexpanded, and whether it expands them at launch was not observed; `commands/` is no longer read, so commands stop reaching Codex and Copilot CLI users [E1] [E7] [E9].
 - The one way observed to keep a command in every tool is to convert it: moving `commands/<name>.md` to `skills/<name>/SKILL.md` left Claude Code's component list unchanged and all three tools offered the skill, while keeping both the command and a same-named skill made Claude Code list the name twice [E7].
 - That move changes a file Claude Code reads, so it is an exception to migrating additively: propose it and let the user decide, and otherwise report which tools lose the command [E7].
 

@@ -33,7 +33,7 @@ RULE_CITE = re.compile(r"\bR(\d+)\b")
 EVIDENCE_ROW = re.compile(r"^\| (E\d+) \| (.+) \| (docs|source|probe|run) \|$", re.M)
 EVIDENCE_CITE = re.compile(r"\[(E\d+)\]")
 LINK = re.compile(r"\]\(([^)\s]+)\)")
-REPO_PATH = re.compile(r"`((?:docs|tests)/[^`\s]+)`")
+REPO_PATH = re.compile(r"`((?:docs|tests|skills)/[^`\s]+)`")
 READER_COLUMNS = {"Claude Code": "claude-code", "Codex": "codex", "Copilot CLI": "copilot-cli"}
 
 
@@ -133,7 +133,7 @@ def test_the_source_type_table_matches_readers_json():
     assert seen == everything
 
 
-@pytest.mark.parametrize("name", sorted(EXPECTED_REFS - {"freshness.md"}))
+@pytest.mark.parametrize("name", sorted(EXPECTED_REFS))
 def test_every_fact_bullet_cites_evidence(name):
     # a set-level check misses an uncited line whose id is cited elsewhere; check each bullet
     text = (REFS / name).read_text(encoding="utf-8")

@@ -19,7 +19,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 - A plugin installed from a catalog added as a local directory is loaded live from that directory, not copied: "It is loaded live from …, so edits take effect on the next session — nothing was copied." [E2] [E6]
 - A plugin's commands are offered as skills [E6].
 - When a Claude-format plugin has a root `.mcp.json`, Copilot CLI configures the servers in it and ignores the file the manifest's `mcpServers` names [E6].
-- Server arguments containing `${CLAUDE_PLUGIN_ROOT}` or `${user_config.*}` are shown unexpanded, and the server's environment carries `CLAUDE_PLUGIN_ROOT`, `COPILOT_PLUGIN_ROOT`, and `PLUGIN_ROOT` [E6].
+- Server arguments containing `${CLAUDE_PLUGIN_ROOT}` or `${user_config.*}` are shown unexpanded, and the server's environment carries `CLAUDE_PLUGIN_ROOT`, `COPILOT_PLUGIN_ROOT`, and `PLUGIN_ROOT`; whether the arguments are expanded when the server starts was not observed [E6].
 - A failed install still leaves a listing entry, distinguishable only by `enabled: false` and no `version`, so check both, not list membership [E2].
 
 ## Isolation
