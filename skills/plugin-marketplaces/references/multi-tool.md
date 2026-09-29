@@ -20,7 +20,7 @@ Each tool ignores the other pair, so the two manifests must agree on `name` (R8)
 
 - Root `plugin.json` holds only the Agent Plugins fields, with `$schema` set; everything Claude-specific stays in `.claude-plugin/plugin.json` [E2].
 - `mcp.json` repeats each `.mcp.json` server with an explicit `type`, `"streamable-http"` for `"http"`, and `${PLUGIN_ROOT}` for `${CLAUDE_PLUGIN_ROOT}` [E2] [E3].
-- Agents, hooks, `userConfig`, and LSP servers have no portable form: keep them in the Claude adapter, and give Codex hooks through `extensions["com.openai"].hooks` in the root manifest if Codex should run them [E2] [E3].
+- Agents, hooks, `userConfig`, and LSP servers have no portable form: keep them in the Claude adapter; Codex also discovers `hooks/hooks.json` by default when `extensions["com.openai"]` in the root manifest defines no `hooks`, so the adapter's hooks reach Codex users once they trust them, and setting `hooks` there points Codex at another file [E2] [E3].
 - Commands have no portable form either, but a command converted to a skill has one: the Agent Plugins migration guide maps "command or prompt" to "convert to a skill if appropriate" [E2] [E3].
 - The migration guide advises migrating additively: add the portable pair beside the existing files and remove nothing another tool reads [E2].
 
@@ -52,12 +52,12 @@ Conformance probes: `codex-reads-portable-root`, `codex-skips-github-source`, `c
 | Id | Evidence | Kind |
 | --- | --- | --- |
 | E1 | probe P4; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
-| E2 | `agentplugins/agent-plugins-example` at `5f3f5084a8`, `migrate-agent-plugin` skill, and the Codex build documentation; `docs/research/2026-09-27-agent-plugins.md` §4 | docs |
+| E2 | `agentplugins/agent-plugins-example` at `5f3f5084a8`, `migrate-agent-plugin` skill, and the Codex build documentation; `docs/research/2026-09-27-agent-plugins.md` §4; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E3 | Agent Plugins `spec/1.0.0.md` §6 and §9; `docs/research/2026-09-27-agent-plugins.md` §2 | docs |
 | E4 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120`, `marketplace.rs`, and a probe on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
-| E5 | https://docs.github.com/en/copilot/reference/cli-plugin-reference, fetched 2026-09-27; `docs/research/2026-09-27-other-harnesses.md`, GitHub Copilot CLI | docs |
+| E5 | https://docs.github.com/en/copilot/reference/cli-plugin-reference, fetched 2026-09-27; `docs/research/2026-09-27-other-harnesses.md`, GitHub Copilot CLI; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E6 | probe P3 on copilot 1.0.89; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E7 | plan-2c with-skill runs of scenario 4 on claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89, comparing the Claude-only and dual-packaged layouts; `tests/runs/evidence/2026-09-28-s4-r1-with-skill-tool-results.jsonl`, `tests/runs/evidence/2026-09-28-s4-r2-with-skill-tool-results.jsonl`, and `tests/runs/evidence/2026-09-28-s4-r5-with-skill-tool-results.jsonl` | run |
 | E8 | Codex command-migration probe; `docs/research/2026-09-28-codex-command-migration-probe.md` | probe |
 | E9 | probe P1; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
-| E10 | https://code.claude.com/docs/en/skills, fetched 2026-09-28 | docs |
+| E10 | https://code.claude.com/docs/en/skills, fetched 2026-09-28; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |

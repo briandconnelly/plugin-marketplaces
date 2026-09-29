@@ -14,103 +14,103 @@
       "id": "claude-marketplace-reference",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/marketplace-reference.md",
-      "sha256": null,
+      "sha256": "9bce0af0615e2e15e2337b5bf641ca6cb61020cb7a6b521f39d2055ca1335b5c",
       "affects": [
         "claude-code.md#E1",
         "feature-matrix.md#E7",
         "releases.md#E1",
         "validation.md#E1"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-create-marketplace",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/create-marketplace.md",
-      "sha256": null,
+      "sha256": "3b079222bc97cf17a9231e163cb9df2d47acf79cc80f0c0b155de33c087dbca5",
       "affects": [
         "claude-code.md#E1"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-manifest-reference",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/manifest-reference.md",
-      "sha256": null,
+      "sha256": "2ec613e87106d52bcba2883e4b58c222ce622676f4b14fee0db9c89eb2f8c270",
       "affects": [
         "claude-code.md#E2",
         "feature-matrix.md#E1"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-loading",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/loading.md",
-      "sha256": null,
+      "sha256": "2ae43ab16e376c9ed960f34c7d7e6faa4f917ae3d07ac358969f40e36082bb15",
       "affects": [
         "claude-code.md#E3",
         "feature-matrix.md#E7",
         "releases.md#E1"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-host-marketplace",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/host-marketplace.md",
-      "sha256": null,
+      "sha256": "56123e008d0de5a876806dda15426e4990a4036e503f7c11209e1bbfa5379a53",
       "affects": [
         "claude-code.md#E3",
         "claude-code.md#E10"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-settings-plugins",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/settings-reference.md",
       "section": "## Plugins and skills",
-      "sha256": null,
+      "sha256": "5a16c83cbe9fb6df107cd9669dc7889754d5659c749cfa6ec456ed11802095f3",
       "affects": [
         "claude-code.md#E3"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-cli-reference",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/plugins/cli-reference.md",
-      "sha256": null,
+      "sha256": "f2e42471f2fd6a8b63aca5a1052826f4a7552ec8df86aff6cae46759b7a46831",
       "affects": [
         "claude-code.md#E4"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "claude-skills",
       "kind": "doc",
       "url": "https://code.claude.com/docs/en/skills.md",
-      "sha256": null,
+      "sha256": "ffe690866cdac3e163ebefbd270161e62796dc35399f3335e4067b43d2b23910",
       "affects": [
         "multi-tool.md#E10"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "openai-plugins-build",
       "kind": "doc",
       "url": "https://developers.openai.com/plugins/build/plugins.md",
-      "sha256": null,
+      "sha256": "4b003d3d35ba8cca78d99e073ea1218e3ec7a4e44030e569261e67bd7039cc8a",
       "affects": [
         "codex.md#E1",
         "codex.md#E3",
@@ -118,32 +118,32 @@
         "agent-plugins.md#E5",
         "multi-tool.md#E2"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "openai-submit-claude-plugin",
       "kind": "doc",
       "url": "https://developers.openai.com/plugins/guides/submit-claude-plugin.md",
-      "sha256": null,
+      "sha256": "f191c10e6d42c034a48780f52bf87cb970bc1f55cf3487dd9326b5d81302eb3a",
       "affects": [
         "codex.md#E5",
         "feature-matrix.md#E2"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "copilot-cli-plugin-reference",
       "kind": "doc",
       "url": "https://docs.github.com/api/article/body?pathname=/en/copilot/reference/cli-plugin-reference",
-      "sha256": null,
+      "sha256": "09090f796cdb82fc811c539be75b687c6567c2b4eca55a44797cff2f35a2a828",
       "affects": [
         "copilot-cli.md#E1",
         "multi-tool.md#E5"
       ],
-      "verified": null,
-      "evidence": null
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
     },
     {
       "id": "agent-plugins-plugin-schema",

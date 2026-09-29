@@ -45,7 +45,7 @@ Conformance probes: none yet.
 | Id | Evidence | Kind |
 | --- | --- | --- |
 | E1 | https://agent-plugins.org/ and `agentplugins/agent-plugins-spec` at `ff8ab5e392`, including `FUTURE_CONSIDERATIONS.md` and discussions #50, #52, #57; `docs/research/2026-09-27-agent-plugins.md` §1 and §3 | docs |
-| E2 | `agentplugins/agent-plugins-example` at `5f3f5084a8`, `migrate-agent-plugin` skill, and https://developers.openai.com/codex/plugins/build.md; `docs/research/2026-09-27-agent-plugins.md` §4 | docs |
+| E2 | `agentplugins/agent-plugins-example` at `5f3f5084a8`, `migrate-agent-plugin` skill, and https://developers.openai.com/codex/plugins/build.md; `docs/research/2026-09-27-agent-plugins.md` §4; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E3 | https://agent-plugins.org/schemas/1.0.0/plugin.schema.json and mcp.schema.json, issues #76 and #77; `docs/research/2026-09-27-agent-plugins.md` §5 | docs |
 | E4 | `spec/1.0.0.md` at `agentplugins/agent-plugins-spec@ff8ab5e392`, §4 to §10; `docs/research/2026-09-27-agent-plugins.md` §2 | docs |
-| E5 | `https://developers.openai.com/plugins/build/plugins.md`, the portable-format note that each server needs a transport `type`; `docs/research/2026-09-27-codex.md` §5 | docs |
+| E5 | `https://developers.openai.com/plugins/build/plugins.md`, the portable-format note that each server needs a transport `type`; `docs/research/2026-09-27-codex.md` §5; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |

@@ -34,7 +34,7 @@ Any other source, including Claude Code's `{"source": "github", …}` with or wi
 
 Codex reads one of two formats [E3]:
 
-- **Portable**: a root `plugin.json` that is a regular file (not a symlink) whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills come from `skills/` and MCP servers from `mcp.json`, and nothing in the manifest can move them [E3].
+- **Portable**: a root `plugin.json` that is a regular file (not a symlink) whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills come from `skills/` and MCP servers from `mcp.json`, and nothing in the manifest can move them; hooks come from `hooks/hooks.json` unless `extensions["com.openai"].hooks` names another file [E3].
   OpenAI-specific settings go under `extensions["com.openai"]`, which, when present, replaces `.codex-plugin/plugin.json` as the overlay rather than merging with it.
 - **Compatibility**: otherwise, the first of `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and `.cursor-plugin/plugin.json`; skills default to `skills/`, MCP to `.mcp.json`, hooks to `hooks/hooks.json` [E3].
 - Display metadata lives in an `interface` object (`displayName`, `shortDescription`, `longDescription`, `developerName`, `category`, `capabilities`, `websiteURL`, `defaultPrompt`, `brandColor`, `logo`, and others), in `.codex-plugin/plugin.json` or under `extensions["com.openai"]`; OpenAI's directory submission checks stricter limits than the CLI [E3] [E6].
@@ -73,11 +73,11 @@ Conformance probes: `codex-migrates-described-commands`, `codex-prefers-agents-c
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | https://developers.openai.com/plugins/build/plugins.md, fetched 2026-09-27; `docs/research/2026-09-27-codex.md` §1 | docs |
+| E1 | https://developers.openai.com/plugins/build/plugins.md, fetched 2026-09-27; `docs/research/2026-09-27-codex.md` §1; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E2 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120`: `codex-rs/core-plugins/src/marketplace.rs`, `core-plugins/src/store.rs`, `core-plugin-common/src/plugin_id.rs`, and a probe on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
-| E3 | the same commit: `utils/plugins/src/plugin_namespace.rs`, `core-plugins/src/agent_plugin_manifest.rs`, `core-plugins/src/manifest.rs`, and https://developers.openai.com/plugins/build/plugins.md; `docs/research/2026-09-27-codex.md` §2 | source |
+| E3 | the same commit: `utils/plugins/src/plugin_namespace.rs`, `core-plugins/src/agent_plugin_manifest.rs`, `core-plugins/src/manifest.rs`, and https://developers.openai.com/plugins/build/plugins.md; `docs/research/2026-09-27-codex.md` §2; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | source |
 | E4 | the same commit (`installed_marketplaces.rs`, `store.rs`, `manager.rs`) and probes on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §3 | source |
-| E5 | https://developers.openai.com/plugins/guides/submit-claude-plugin.md, fetched 2026-09-27, and `core-plugins/src/command_migration*.rs` at the same commit; `docs/research/2026-09-27-codex.md` §4 | docs |
+| E5 | https://developers.openai.com/plugins/guides/submit-claude-plugin.md, fetched 2026-09-27, and `core-plugins/src/command_migration*.rs` at the same commit; `docs/research/2026-09-27-codex.md` §4; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E6 | `docs/research/2026-09-27-codex.md` §5 | source |
 | E7 | plan-2b baseline s7-r3, call 9: `github` entries dropped, `url` and `git-subdir` listed; `tests/runs/evidence/2026-09-28-s7-r3-tool-results.jsonl` | run |
 | E8 | plan-2b baseline s6-r2, call 8; `tests/runs/evidence/2026-09-28-s6-r2-tool-results.jsonl` | run |
