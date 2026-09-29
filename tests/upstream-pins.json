@@ -96,6 +96,17 @@
       "evidence": null
     },
     {
+      "id": "claude-skills",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/skills.md",
+      "sha256": null,
+      "affects": [
+        "multi-tool.md#E10"
+      ],
+      "verified": null,
+      "evidence": null
+    },
+    {
       "id": "openai-plugins-build",
       "kind": "doc",
       "url": "https://developers.openai.com/plugins/build/plugins.md",

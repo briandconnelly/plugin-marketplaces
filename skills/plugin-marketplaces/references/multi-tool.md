@@ -20,15 +20,16 @@ Each tool ignores the other pair, so the two manifests must agree on `name` (R8)
 
 - Root `plugin.json` holds only the Agent Plugins fields, with `$schema` set; everything Claude-specific stays in `.claude-plugin/plugin.json` [E2].
 - `mcp.json` repeats each `.mcp.json` server with an explicit `type`, `"streamable-http"` for `"http"`, and `${PLUGIN_ROOT}` for `${CLAUDE_PLUGIN_ROOT}` [E2] [E3].
-- Commands, agents, hooks, `userConfig`, and LSP servers have no portable form: keep them in the Claude adapter, and give Codex hooks through `extensions["com.openai"].hooks` in the root manifest if Codex should run them [E2] [E3].
-- Migrate additively: add the portable pair beside the existing files and remove nothing another tool reads [E2].
+- Agents, hooks, `userConfig`, and LSP servers have no portable form: keep them in the Claude adapter, and give Codex hooks through `extensions["com.openai"].hooks` in the root manifest if Codex should run them [E2] [E3].
+- Commands have no portable form either, but a command converted to a skill has one: the Agent Plugins migration guide maps "command or prompt" to "convert to a skill if appropriate" [E2] [E3].
+- The migration guide advises migrating additively: add the portable pair beside the existing files and remove nothing another tool reads [E2].
 
 ## What adding the portable pair changes
 
 - Without a root `plugin.json`, Codex and Copilot CLI read the Claude-format manifest: Codex migrates each command with a `description` into a `source-command-<name>` skill and Copilot CLI offers commands as skills, but MCP server arguments keep `${CLAUDE_PLUGIN_ROOT}` literally, so a server started from a path under it cannot start [E6] [E8] [E9].
 - With a root `plugin.json`, both tools read only the portable package and configure MCP servers from `mcp.json`: Codex gives each server a real `PLUGIN_ROOT` and `PLUGIN_DATA` and the installed directory as its working directory, while Copilot CLI sets `PLUGIN_ROOT` in the server's environment and shows `${PLUGIN_ROOT}` in its arguments unexpanded, and whether it expands them at launch was not observed; `commands/` is no longer read, so commands stop reaching Codex and Copilot CLI users [E1] [E7] [E9].
 - The one way observed to keep a command in every tool is to convert it: moving `commands/<name>.md` to `skills/<name>/SKILL.md` left Claude Code's component list unchanged and all three tools offered the skill, while keeping both the command and a same-named skill made Claude Code list the name twice [E7].
-- That move changes a file Claude Code reads, so it is an exception to migrating additively: propose it and let the user decide, and otherwise report which tools lose the command [E7].
+- Claude Code documents custom commands as merged into skills: `commands/<name>.md` and `skills/<name>/SKILL.md` both create `/<name>`, a command file is "the older format and still works", and a skill is preferred for new work [E10].
 
 ## Why two native catalogs
 
@@ -59,3 +60,4 @@ Conformance probes: `codex-reads-portable-root`, `codex-skips-github-source`, `c
 | E7 | plan-2c with-skill runs of scenario 4 on claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89, comparing the Claude-only and dual-packaged layouts; `tests/runs/evidence/2026-09-28-s4-r1-with-skill-tool-results.jsonl`, `tests/runs/evidence/2026-09-28-s4-r2-with-skill-tool-results.jsonl`, and `tests/runs/evidence/2026-09-28-s4-r5-with-skill-tool-results.jsonl` | run |
 | E8 | Codex command-migration probe; `docs/research/2026-09-28-codex-command-migration-probe.md` | probe |
 | E9 | probe P1; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
+| E10 | https://code.claude.com/docs/en/skills, fetched 2026-09-28 | docs |

@@ -141,7 +141,7 @@ In a scenario whose baseline passes every criterion in every repetition, a treat
 
 **Success criteria:**
 
-1. Claude Code still accepts the marketplace, and `.claude-plugin/plugin.json` still declares the command, agent, hook, and MCP server paths or defaults it declared before.
+1. Claude Code still accepts the marketplace, and `.claude-plugin/plugin.json` still declares the command, agent, hook, and MCP server paths or defaults it declared before, except that the diff may move `commands/review.md` to `skills/review/SKILL.md` with frontmatter `name: review` (adopted 2026-09-28, before any plan-3 treatment run, when the owner made converting commands to skills the skill's default).
 2. Codex lists `review-kit`, and Copilot CLI lists `review-kit`.
 3. The final report says Codex does not load the plugin's custom agent (`agents/reviewer.md`) and does not support its `userConfig` setting (both per OpenAI's plugin documentation, `docs/research/2026-09-27-codex.md` §4).
 4. The final report says the `review` command reaches Codex users as a skill, either because Codex migrates it automatically (observed with codex-cli 0.157.1, `docs/research/2026-09-28-codex-command-migration-probe.md`) or because the agent converted it; a report that calls it unsupported in Codex fails this criterion.

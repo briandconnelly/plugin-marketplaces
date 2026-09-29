@@ -34,6 +34,7 @@ This skill covers three readers â€” Claude Code, Codex, and GitHub Copilot CLI â
 - Package a plugin meant for several tools as an Agent Plugins root `plugin.json` plus `mcp.json`, with a Claude Code adapter (`.claude-plugin/plugin.json` plus `.mcp.json`), because Claude Code reads only the adapter and Codex and Copilot CLI read only the portable pair.
 - Publish one native catalog per tool family you target (`.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`), parity-checked, because a single shared catalog is limited to the source types every reader of it accepts.
   A single `.claude-plugin/marketplace.json` is a valid choice when its entries use only sources all its declared readers accept; record that choice in `marketplace-policy.json`.
+- Deliver a plugin's slash commands as skills (`skills/<name>/SKILL.md`), and convert an existing `commands/<name>.md` the same way when packaging for several tools, because Claude Code treats both as the same `/<name>`, and once a portable root `plugin.json` exists only a skill still reaches Codex and Copilot CLI users ([multi-tool.md](references/multi-tool.md)).
 
 ## Workflows
 
@@ -73,7 +74,7 @@ Run the validator from this skill: `check-marketplace <marketplace root>` when i
 ### Port a plugin to another tool
 
 1. Read [feature-matrix.md](references/feature-matrix.md) for which of the plugin's components the target tool loads, and in what form.
-2. Add the target's manifest additively; never delete another tool's files to make a plugin portable.
+2. Add the target's manifest additively; never delete another tool's files to make a plugin portable, except to convert commands to skills (see Defaults), and name each converted command in the report.
    A portable root `plugin.json` changes what Codex and Copilot CLI read, so check what the plugin gains and loses in each tool first ([multi-tool.md](references/multi-tool.md), "What adding the portable pair changes").
 3. Load-check the port in each tool without opening a model session ([validation.md](references/validation.md), "Seeing what loaded").
 4. Report, per tool, what loads, what loads in another form, and what does not load, citing the reference or the check for each claim.
