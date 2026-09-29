@@ -49,7 +49,7 @@ Conformance probes: none yet.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | https://code.claude.com/docs/en/plugins/marketplace-reference and loading, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §1 and §3 | docs |
+| E1 | https://code.claude.com/docs/en/plugins/marketplace-reference and loading, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §1 and §3; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E2 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120`, `plugin_namespace.rs`, `store.rs`, and `manager.rs`; `docs/research/2026-09-27-codex.md` §2 and §3 | source |
 | E3 | probe P4 on all three tools; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E4 | plan-2b baselines s2-r1 to s2-r3 (lint-kit's disagreeing manifests) and s7 objective checks; `tests/runs/evidence/2026-09-28-s2-r3-tool-results.jsonl` and `tests/runs/2026-09-28-s7-r1-baseline.md` | run |

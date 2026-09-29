@@ -99,7 +99,7 @@ Conformance probes: none yet.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | https://code.claude.com/docs/en/plugins/marketplace-reference, fetched 2026-09-27 (hosts that cannot fetch by SHA); `docs/research/2026-09-27-claude-code.md` §1 and `docs/research/README.md`, Known corrections | docs |
+| E1 | https://code.claude.com/docs/en/plugins/marketplace-reference, fetched 2026-09-27 (hosts that cannot fetch by SHA); `docs/research/2026-09-27-claude-code.md` §1 and `docs/research/README.md`, Known corrections; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E2 | the validator's source and tests: `skills/plugin-marketplaces/scripts/mpcheck/cli.py`, `run.py`, and `checks_schema.py`; `tests/test_cli.py` | source |
 | E3 | plan-2b adjudications: a lost `export` after a failed `cd` (s4-r4), the real git configuration written with only `HOME` changed (preamble-v1 s1-r3), Copilot sessions reaching GitHub (s4-r7), keychain use (s4-r4, s4-r7, s4-r8, s4-r9); `tests/runs/2026-09-28-baseline-summary-2b.md` | run |
 | E4 | Codex command-migration probe and source reading on codex-cli 0.157.1; `docs/research/2026-09-28-codex-command-migration-probe.md` and `docs/research/2026-09-27-codex.md` §3 and §5 | probe |

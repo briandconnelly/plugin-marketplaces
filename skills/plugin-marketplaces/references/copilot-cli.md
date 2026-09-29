@@ -36,11 +36,11 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 ## Provenance
 
 Verified against: copilot 1.0.88 (phase-0 and pluginRoot probes) and 1.0.89 (plan-2c probes) on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `copilot-offers-commands-as-skills`, `copilot-prefers-github-catalog`, `copilot-rejects-catalog-with-git-subdir`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | https://docs.github.com/en/copilot/reference/cli-plugin-reference, "File locations", fetched 2026-09-27; `docs/research/2026-09-27-other-harnesses.md`, GitHub Copilot CLI | docs |
+| E1 | https://docs.github.com/en/copilot/reference/cli-plugin-reference, "File locations", fetched 2026-09-27; `docs/research/2026-09-27-other-harnesses.md`, GitHub Copilot CLI; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E2 | phase-0 probes on copilot 1.0.88; `docs/research/2026-09-27-phase0-probes.md` | probe |
 | E3 | `metadata.pluginRoot` probe on copilot 1.0.88; `docs/research/2026-09-27-copilot-pluginroot-probe.md` | probe |
 | E4 | probe P3 on copilot 1.0.89; `docs/research/2026-09-28-load-and-update-probes.md` | probe |

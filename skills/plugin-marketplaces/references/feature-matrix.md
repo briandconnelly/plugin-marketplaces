@@ -11,7 +11,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each cell cites a row of the
 | Skills | `skills/<name>/SKILL.md`; manifest `skills` adds directories [E1] | `skills/` [E2] [E3] | loaded, listed by `copilot skill list` [E3] | `skills/<dir>/SKILL.md`, fixed [E5] |
 | Commands | `commands/`; listed among skills [E1] [E3] | migrated to a skill `source-command-<name>` when the command has a `description` [E2] [E6] | offered as skills [E3] | none [E5] |
 | Agents | `agents/` [E1] | not loaded [E2] [E3] | unproven [E3] | none [E5] |
-| Hooks | `hooks/hooks.json`, merged with manifest `hooks` [E1] | `hooks/hooks.json` (compatibility format) or `extensions["com.openai"].hooks` (portable), run after the user trusts them; no prompt or agent handlers [E2] | unproven [E3] | none [E5] |
+| Hooks | `hooks/hooks.json`, merged with manifest `hooks` [E1] | `hooks/hooks.json` by default in both formats, or the file `extensions["com.openai"].hooks` (portable) or the compatibility manifest names, run after the user trusts them; no prompt or agent handlers [E2] | unproven [E3] | none [E5] |
 | MCP servers | `.mcp.json` merged with manifest `mcpServers`; placeholders expanded [E1] [E3] | compatibility: manifest `mcpServers` replaces `.mcp.json`; portable: `mcp.json`; placeholders passed literally [E2] [E3] [E4] | root `.mcp.json` over the manifest's file; portable `mcp.json` when a root `plugin.json` exists; placeholders shown unexpanded [E3] [E4] | `mcp.json`, each server typed [E5] |
 | `userConfig` | supported, `${user_config.KEY}` [E1] | not supported [E2] | not expanded [E3] | none [E5] |
 | LSP servers | `.lsp.json` [E1] | not supported [E2] | unproven [E3] | none [E5] |
@@ -36,25 +36,26 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each cell cites a row of the
 | Question | Claude Code | Codex | Copilot CLI |
 | --- | --- | --- | --- |
 | Marketplace name | no spaces, `/`, `\`, `..`; reserved names [E7] | `[A-Za-z0-9_-]+` [E8] | no documented rule [E9] |
-| Entry vs manifest `name` | must match; installing by the entry name works but shows the manifest name, and installing by the manifest name gives `not found in marketplace` [E7] [E11] | must match, or install refuses [E8] | same-named manifests collapse into one plugin [E9] |
+| Entry vs manifest `name` | must match; installing by the entry name works, `claude plugin list` shows the entry name and `claude plugin details` the manifest name, and installing by the manifest name gives `not found in marketplace` [E7] [E11] [E12] | must match, or install refuses [E8] | same-named manifests collapse into one plugin [E9] |
 | Version it installs | `.claude-plugin/plugin.json`, then entry, then derived from the source [E7] [E4] | root `plugin.json` (portable), else the compatibility manifest, then entry [E8] [E4] | root `plugin.json` when present [E4] |
 | Change without a version bump | not delivered [E10] | delivered by `codex plugin marketplace upgrade` [E10] | local catalogs load live; remote unproven [E9] |
 
 ## Provenance
 
 Verified against: claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89 on 2026-09-28.
-Conformance probes: none yet.
+Conformance probes: `codex-migrates-described-commands`, `codex-skips-github-source`, `copilot-rejects-catalog-with-git-subdir`.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | https://code.claude.com/docs/en/plugins/manifest-reference, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §2 | docs |
-| E2 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120` and https://developers.openai.com/plugins/guides/submit-claude-plugin.md; `docs/research/2026-09-27-codex.md` §2 and §4 | source |
+| E1 | https://code.claude.com/docs/en/plugins/manifest-reference, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §2; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
+| E2 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120` and https://developers.openai.com/plugins/guides/submit-claude-plugin.md; `docs/research/2026-09-27-codex.md` §2 and §4; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | source |
 | E3 | probe P1; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E4 | probe P4; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E5 | Agent Plugins `spec/1.0.0.md` §6; `docs/research/2026-09-27-agent-plugins.md` §2 | docs |
 | E6 | Codex command-migration probe; `docs/research/2026-09-28-codex-command-migration-probe.md` | probe |
-| E7 | https://code.claude.com/docs/en/plugins/marketplace-reference and loading, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §1 and §3 | docs |
+| E7 | https://code.claude.com/docs/en/plugins/marketplace-reference and loading, fetched 2026-09-27; `docs/research/2026-09-27-claude-code.md` §1 and §3; re-verified 2026-09-28, `docs/research/2026-09-28-documentation-reverification.md` | docs |
 | E8 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120` (`marketplace.rs`, `plugin_id.rs`, `store.rs`) and probes on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
 | E9 | Copilot CLI plugin reference and probes on copilot 1.0.88 and 1.0.89; `docs/research/2026-09-27-other-harnesses.md`, `docs/research/2026-09-27-phase0-probes.md`, and `docs/research/2026-09-28-load-and-update-probes.md` P3 | probe |
 | E10 | probe P2; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
 | E11 | plan-2c with-skill runs of scenario 6; `tests/runs/evidence/2026-09-28-s6-r1-with-skill-tool-results.jsonl` | run |
+| E12 | probe on claude 2.1.284 (entry `lint`, manifest `linter`); `docs/research/2026-09-28-documentation-reverification.md`, Entry and manifest names | probe |

@@ -23,9 +23,18 @@ Each fact in the reference cites one or more rows as `[E<n>]`, and a test in thi
 
 ## Refreshing a fact (for maintainers of this skill)
 
-1. Re-verify the fact against its source before editing anything; re-pinning a hash or version without re-verification is the failure this procedure exists to prevent.
-2. Record the new observation as a dated file under `docs/research/`, never by editing an old one.
+- A weekly GitHub Action opens one issue labelled `upstream-drift`, or updates the open one, when an upstream page or source file changed, a conformance probe failed, or a check could not run; a newer tool release is listed in the issue but does not open one by itself, and nothing is touched when nothing changed [E2] [E3] [E4].
+- `tests/check_upstream.py` compares each pin in `tests/upstream-pins.json` with its upstream and names the evidence rows the pin affects; it needs only network access, and a fetch that fails is reported as `error`, never as unchanged [E2].
+- `tests/conformance/run.py` runs each behavioural probe in throwaway configuration and reports it `held`, `flipped`, `broken` (its control failed), `error`, or `skipped`, naming the reference lines a flipped probe re-checks; it also compares each tool's `--help` text with the copy under `tests/conformance/help/` [E3].
+- The references' `Conformance probes:` lines and the probes' anchors are kept in step by a test [E1].
+
+To act on the issue:
+
+1. List the facts a changed pin affects with `uv run python tests/check_upstream.py lines <id>`, and re-verify each against its source before editing anything; re-pinning a hash or version without re-verification is the failure this procedure exists to prevent.
+2. Record the new observation as a dated file under `docs/research/`, never by editing an old one, and name in it, in backticks, every pin id you re-verified and the sha256, blob, or version of the content you read.
 3. Update the fact, its evidence row, and the reference's `Verified against:` line together; if the fact is a reader's source types or catalog paths, update `scripts/mpcheck/data/readers.json` in the same change.
+4. Re-pin with `uv run python tests/check_upstream.py repin <id> … --evidence docs/research/<file>.md`, which refuses unless the record names each pin and the exact value it would pin (a page's sha256, a file's blob, a version); re-pin help text with `uv run python tests/conformance/run.py --repin-help --evidence docs/research/<file>.md`, which refuses unless the record names each text's sha256.
+5. When a probe flipped, change the probe's expectation only in the same change as the reference lines it anchors.
 
 ## Provenance
 
@@ -34,4 +43,7 @@ Conformance probes: none yet.
 
 | Id | Evidence | Kind |
 | --- | --- | --- |
-| E1 | `tests/test_skill_docs.py` | source |
+| E1 | `tests/test_skill_docs.py` and `tests/test_conformance.py` | source |
+| E2 | `tests/check_upstream.py`, `tests/upstream-pins.json`, and `tests/test_check_upstream.py` | source |
+| E3 | `tests/conformance/run.py`, `tests/conformance/probes.py`, and `tests/test_conformance.py` | source |
+| E4 | `.github/workflows/upstream-drift.yml`, `tests/drift_issue.py`, and `tests/test_drift_issue.py` | source |

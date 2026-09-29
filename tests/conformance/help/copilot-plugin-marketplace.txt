@@ -1,0 +1,24 @@
+Usage: copilot plugin marketplace <COMMAND>
+
+Manage plugin marketplaces.
+
+Marketplaces are GitHub repositories containing a `marketplace.json` file that
+indexes available plugins. Add a marketplace to browse and install its plugins.
+
+Two marketplaces are included by default and do not need to be added:
+  copilot-plugins   github/copilot-plugins
+  awesome-copilot   github/awesome-copilot
+
+For more information, see:
+https://docs.github.com/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace
+
+Commands:
+  add     Add a marketplace
+  remove  Remove a marketplace
+  list    List registered marketplaces
+  browse  Browse plugins in a marketplace
+  update  Update marketplace plugin catalogs
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')

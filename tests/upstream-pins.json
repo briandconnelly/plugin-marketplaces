@@ -1,0 +1,433 @@
+{
+  "$comment": "Upstream state the references were verified against (spec \u00a79). Change a pin only with tests/check_upstream.py repin, after re-verifying the facts it affects (references/freshness.md).",
+  "local_rows": {
+    "claude-code.md#E12": "the validator's own source",
+    "codex.md#E6": "cites only the research archive",
+    "freshness.md#E1": "this repository's tests",
+    "freshness.md#E2": "this repository's freshness tooling",
+    "freshness.md#E3": "this repository's freshness tooling",
+    "freshness.md#E4": "this repository's freshness tooling",
+    "validation.md#E2": "the validator's own source and tests"
+  },
+  "pins": [
+    {
+      "id": "claude-marketplace-reference",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/marketplace-reference.md",
+      "sha256": "9bce0af0615e2e15e2337b5bf641ca6cb61020cb7a6b521f39d2055ca1335b5c",
+      "affects": [
+        "claude-code.md#E1",
+        "feature-matrix.md#E7",
+        "releases.md#E1",
+        "validation.md#E1"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-create-marketplace",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/create-marketplace.md",
+      "sha256": "3b079222bc97cf17a9231e163cb9df2d47acf79cc80f0c0b155de33c087dbca5",
+      "affects": [
+        "claude-code.md#E1"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-manifest-reference",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/manifest-reference.md",
+      "sha256": "2ec613e87106d52bcba2883e4b58c222ce622676f4b14fee0db9c89eb2f8c270",
+      "affects": [
+        "claude-code.md#E2",
+        "feature-matrix.md#E1"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-loading",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/loading.md",
+      "sha256": "2ae43ab16e376c9ed960f34c7d7e6faa4f917ae3d07ac358969f40e36082bb15",
+      "affects": [
+        "claude-code.md#E3",
+        "feature-matrix.md#E7",
+        "releases.md#E1"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-host-marketplace",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/host-marketplace.md",
+      "sha256": "56123e008d0de5a876806dda15426e4990a4036e503f7c11209e1bbfa5379a53",
+      "affects": [
+        "claude-code.md#E3",
+        "claude-code.md#E10"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-settings-plugins",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/settings-reference.md",
+      "section": "## Plugins and skills",
+      "sha256": "5a16c83cbe9fb6df107cd9669dc7889754d5659c749cfa6ec456ed11802095f3",
+      "affects": [
+        "claude-code.md#E3"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-cli-reference",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/plugins/cli-reference.md",
+      "sha256": "f2e42471f2fd6a8b63aca5a1052826f4a7552ec8df86aff6cae46759b7a46831",
+      "affects": [
+        "claude-code.md#E4"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "claude-skills",
+      "kind": "doc",
+      "url": "https://code.claude.com/docs/en/skills.md",
+      "sha256": "ffe690866cdac3e163ebefbd270161e62796dc35399f3335e4067b43d2b23910",
+      "affects": [
+        "multi-tool.md#E10"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "openai-plugins-build",
+      "kind": "doc",
+      "url": "https://developers.openai.com/plugins/build/plugins.md",
+      "sha256": "4b003d3d35ba8cca78d99e073ea1218e3ec7a4e44030e569261e67bd7039cc8a",
+      "affects": [
+        "codex.md#E1",
+        "codex.md#E3",
+        "agent-plugins.md#E2",
+        "agent-plugins.md#E5",
+        "multi-tool.md#E2"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "openai-submit-claude-plugin",
+      "kind": "doc",
+      "url": "https://developers.openai.com/plugins/guides/submit-claude-plugin.md",
+      "sha256": "f191c10e6d42c034a48780f52bf87cb970bc1f55cf3487dd9326b5d81302eb3a",
+      "affects": [
+        "codex.md#E5",
+        "feature-matrix.md#E2"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "copilot-cli-plugin-reference",
+      "kind": "doc",
+      "url": "https://docs.github.com/api/article/body?pathname=/en/copilot/reference/cli-plugin-reference",
+      "sha256": "09090f796cdb82fc811c539be75b687c6567c2b4eca55a44797cff2f35a2a828",
+      "affects": [
+        "copilot-cli.md#E1",
+        "multi-tool.md#E5"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "agent-plugins-plugin-schema",
+      "kind": "doc",
+      "url": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      "sha256": "0a4aad95ce337878ad38802ebf0daa3fde76abe3f65400c86bcbb1ec0b3ab883",
+      "snapshot": "skills/plugin-marketplaces/scripts/mpcheck/data/schemas/agent-plugins/1.0.0/plugin.schema.json",
+      "affects": [
+        "agent-plugins.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-mcp-schema",
+      "kind": "doc",
+      "url": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+      "sha256": "6539175bfcdf43085855183e86da40ea94b166547a72b47ae9a0a390516d3acb",
+      "snapshot": "skills/plugin-marketplaces/scripts/mpcheck/data/schemas/agent-plugins/1.0.0/mcp.schema.json",
+      "affects": [
+        "agent-plugins.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-spec-1-0-0",
+      "kind": "github-file",
+      "repo": "agentplugins/agent-plugins-spec",
+      "path": "spec/1.0.0.md",
+      "pinned_at": "ff8ab5e392cc87bd88d87c060815a87490e51003",
+      "blob": "c95263bd61fc16608390006bc461e964ce21cd12",
+      "compare": "default-branch",
+      "affects": [
+        "agent-plugins.md#E1",
+        "agent-plugins.md#E4",
+        "feature-matrix.md#E5",
+        "multi-tool.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-future-considerations",
+      "kind": "github-file",
+      "repo": "agentplugins/agent-plugins-spec",
+      "path": "FUTURE_CONSIDERATIONS.md",
+      "pinned_at": "ff8ab5e392cc87bd88d87c060815a87490e51003",
+      "blob": "e7589b0ab0cf6e68a672bc3f54a6fbabf2c0fb4e",
+      "compare": "default-branch",
+      "affects": [
+        "agent-plugins.md#E1"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-spec-versions",
+      "kind": "github-dir",
+      "repo": "agentplugins/agent-plugins-spec",
+      "path": "spec",
+      "entries": [
+        "1.0.0.md",
+        "1.1.0.md"
+      ],
+      "compare": "default-branch",
+      "affects": [
+        "agent-plugins.md#E1",
+        "agent-plugins.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-schema-versions",
+      "kind": "github-dir",
+      "repo": "agentplugins/agent-plugins-spec",
+      "path": "schemas",
+      "entries": [
+        "1.0.0",
+        "1.1.0"
+      ],
+      "compare": "default-branch",
+      "affects": [
+        "agent-plugins.md#E1",
+        "agent-plugins.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "agent-plugins-migration-guide",
+      "kind": "github-file",
+      "repo": "agentplugins/agent-plugins-example",
+      "path": "skills/migrate-agent-plugin/references/migration-guide.md",
+      "pinned_at": "5f3f5084a821aefa792e79500dd8f0462ab83473",
+      "blob": "1186a3445241a89885dc1dc3f6c4e27f58bb6f67",
+      "compare": "default-branch",
+      "affects": [
+        "agent-plugins.md#E2",
+        "multi-tool.md#E2"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-agent-plugins.md"
+    },
+    {
+      "id": "codex-marketplace-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/marketplace.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "d919e811351a421dec7ebdbe940c314932667baa",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E2",
+        "multi-tool.md#E4",
+        "feature-matrix.md#E8"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-store-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/store.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "4a52d58a8129b64ce16ba480b8eadaeed2f20d4e",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E2",
+        "codex.md#E4",
+        "feature-matrix.md#E8",
+        "releases.md#E2"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-plugin-id-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugin-common/src/plugin_id.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "3bb650453183acb02dcd786b1fdeb2b6979fed1e",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E2",
+        "feature-matrix.md#E8"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-plugin-namespace-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/utils/plugins/src/plugin_namespace.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "f64c3897d34a446cb83f0602d27d782eb8a2699e",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E3",
+        "releases.md#E2"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-agent-plugin-manifest-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/agent_plugin_manifest.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "4b9d1e6356e803e2c0bb40eabe98f75eafdd5fde",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-manifest-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/manifest.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "9991031f6056eea6734965b91899954d0ed519a7",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E3"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-installed-marketplaces-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/installed_marketplaces.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "f84290bf43d95c24fb0930895655a763cccbdfec",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E4"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-manager-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/manager.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "3312b401202bdf21e666d1d816ad6b68ec20e78a",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E4",
+        "releases.md#E2"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "codex-command-migration-rs",
+      "kind": "github-file",
+      "repo": "openai/codex",
+      "path": "codex-rs/core-plugins/src/command_migration.rs",
+      "pinned_at": "659b35f1316eda27ef61850dd0832c4a4e95c120",
+      "blob": "1544b252962b705a31f83ce5a696ded0cea59871",
+      "compare": "latest-release",
+      "affects": [
+        "codex.md#E5",
+        "feature-matrix.md#E2"
+      ],
+      "verified": "2026-09-27",
+      "evidence": "docs/research/2026-09-27-codex.md"
+    },
+    {
+      "id": "npm-claude-code",
+      "kind": "npm",
+      "package": "@anthropic-ai/claude-code",
+      "version": "2.1.284",
+      "affects": [
+        "claude-code.md#verified",
+        "feature-matrix.md#verified",
+        "multi-tool.md#verified",
+        "releases.md#verified",
+        "validation.md#verified"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-load-and-update-probes.md"
+    },
+    {
+      "id": "npm-codex",
+      "kind": "npm",
+      "package": "@openai/codex",
+      "version": "0.157.1",
+      "affects": [
+        "codex.md#verified",
+        "feature-matrix.md#verified",
+        "multi-tool.md#verified",
+        "releases.md#verified",
+        "validation.md#verified"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-load-and-update-probes.md"
+    },
+    {
+      "id": "npm-copilot",
+      "kind": "npm",
+      "package": "@github/copilot",
+      "version": "1.0.89",
+      "affects": [
+        "copilot-cli.md#verified",
+        "feature-matrix.md#verified",
+        "multi-tool.md#verified",
+        "releases.md#verified",
+        "validation.md#verified"
+      ],
+      "verified": "2026-09-28",
+      "evidence": "docs/research/2026-09-28-load-and-update-probes.md"
+    }
+  ]
+}

@@ -37,3 +37,8 @@ uv sync
 uv run pytest
 prek run --all-files
 ```
+
+## Keeping the facts current
+
+A weekly GitHub Action (`.github/workflows/upstream-drift.yml`) re-checks the upstream documents, source files, and releases the references were verified against, runs the conformance probes against the latest claude, codex, and copilot CLIs, and opens or updates one issue labelled `upstream-drift` when a fact may have gone stale.
+Run the same checks locally with `uv run python tests/check_upstream.py` and `uv run python tests/conformance/run.py`; how to act on a finding is in [freshness.md](skills/plugin-marketplaces/references/freshness.md).
