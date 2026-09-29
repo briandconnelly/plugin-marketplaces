@@ -1,7 +1,9 @@
 # Trigger Cases for plugin-marketplaces
 
-Prompts that must, and must not, load the skill, checked against SKILL.md's frontmatter `description` once plan 2b writes it.
-Run each prompt against the skill catalog without naming the skill; store the result in `tests/runs/YYYY-MM-DD-trigger.md`.
+Prompts that must, and must not, load the skill, checked against SKILL.md's frontmatter `description`.
+`uv run python tests/eval/trigger.py prepare OUT` writes one prompt per case and repetition, listing the description beside the distractors in `tests/fixtures/trigger/distractors.json` without saying which skill is under test; dispatch each prompt, exactly, to a fresh subagent, then `uv run python tests/eval/trigger.py record OUT TASKS tests/runs/YYYY-MM-DD-trigger.md` scores the replies.
+A positive case passes when the reply chooses `plugin-marketplaces`, and a negative case passes when it does not.
+The table rows are parsed by `tests/eval/trigger.py`: keep each prompt in double quotes in the first column.
 
 ## Positive cases (must trigger)
 

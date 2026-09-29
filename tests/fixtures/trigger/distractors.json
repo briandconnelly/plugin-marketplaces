@@ -1,0 +1,33 @@
+{
+  "$comment": "Skill descriptions offered beside plugin-marketplaces in trigger runs, copied verbatim on 2026-09-28 from the skills installed in the dispatching Claude Code session (claude 2.1.284); chosen as the installed skills nearest in scope.",
+  "skills": [
+    {
+      "name": "plugin-dev:plugin-structure",
+      "description": "This skill should be used when the user asks to \"create a plugin\", \"scaffold a plugin\", \"understand plugin structure\", \"organize plugin components\", \"set up plugin.json\", \"use ${CLAUDE_PLUGIN_ROOT}\", \"add commands/agents/skills/hooks\", \"configure auto-discovery\", or needs guidance on plugin directory layout, manifest configuration, component organization, file naming conventions, or Claude Code plugin architecture best practices."
+    },
+    {
+      "name": "plugin-dev:skill-development",
+      "description": "This skill should be used when the user wants to \"create a skill\", \"add a skill to plugin\", \"write a new skill\", \"improve skill description\", \"organize skill content\", or needs guidance on skill structure, progressive disclosure, or skill development best practices for Claude Code plugins."
+    },
+    {
+      "name": "plugin-dev:hook-development",
+      "description": "This skill should be used when the user asks to \"create a hook\", \"add a PreToolUse/PostToolUse/Stop hook\", \"validate tool use\", \"implement prompt-based hooks\", \"use ${CLAUDE_PLUGIN_ROOT}\", \"set up event-driven automation\", \"block dangerous commands\", or mentions hook events (PreToolUse, PostToolUse, Stop, SubagentStop, SessionStart, SessionEnd, UserPromptSubmit, PreCompact, Notification). Provides comprehensive guidance for creating and implementing Claude Code plugin hooks with focus on advanced prompt-based hooks API."
+    },
+    {
+      "name": "plugin-dev:mcp-integration",
+      "description": "This skill should be used when the user asks to \"add MCP server\", \"integrate MCP\", \"configure MCP in plugin\", \"use .mcp.json\", \"set up Model Context Protocol\", \"connect external service\", mentions \"${CLAUDE_PLUGIN_ROOT} with MCP\", or discusses MCP server types (SSE, stdio, HTTP, WebSocket). Provides comprehensive guidance for integrating Model Context Protocol servers into Claude Code plugins for external tool and service integration."
+    },
+    {
+      "name": "mcp-server-dev:build-mcp-server",
+      "description": "This skill should be used when the user asks to \"build an MCP server\", \"create an MCP\", \"make an MCP integration\", \"wrap an API for Claude\", \"expose tools to Claude\", \"make an MCP app\", or discusses building something with the Model Context Protocol. It is the entry point for MCP server development — it interrogates the user about their use case, determines the right deployment model (remote HTTP, MCPB, local stdio), picks a tool-design pattern, and hands off to specialized skills."
+    },
+    {
+      "name": "skill-creator:skill-creator",
+      "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy."
+    },
+    {
+      "name": "fastmcp",
+      "description": "Use when working with FastMCP to build MCP servers, tools, resources, or prompts in Python. Triggers on: FastMCP imports or questions, building or debugging MCP servers with FastMCP, FastMCP tools/resources/prompts/context, FastMCP app UI components, MCP server deployment with FastMCP, FastMCP authentication or transports, FastMCP migrations or upgrades, Model Context Protocol servers built with FastMCP."
+    }
+  ]
+}
