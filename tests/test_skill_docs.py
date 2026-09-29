@@ -145,3 +145,12 @@ def test_every_fact_bullet_cites_evidence(name):
         elif not fence and line.lstrip().startswith("- ") and not EVIDENCE_CITE.search(line):
             uncited.append(f"{name}:{number}: {line.strip()[:80]}")
     assert uncited == []
+
+
+@pytest.mark.parametrize("path", [p.name for p in docs()])
+def test_no_heading_repeats(path):
+    # plan 3: a patch re-added old sections below their replacements, so one reference gave
+    # agents two different procedures under the same heading
+    target = SKILL if path == "SKILL.md" else REFS / path
+    headings = re.findall(r"^#{1,6} .+$", target.read_text(encoding="utf-8"), re.M)
+    assert sorted(h for h in set(headings) if headings.count(h) > 1) == []

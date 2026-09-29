@@ -2,8 +2,10 @@ name: upstream-drift
 
 # Weekly: re-check what the skill's references were verified against, and open or update
 # one issue when anything changed (spec §9). The runner is throwaway and has no model
-# sign-in; no token reaches the probe step, and the probes' sandbox passes the tools only
-# PATH and locale variables.
+# sign-in; checkout leaves no token in the git config, no token is in the probe step's
+# environment, and the probes' sandbox passes the tools only PATH and locale variables.
+# A failure before or during the checks still reaches the issue step, which reads a missing
+# report as a finding.
 
 on:
   schedule:
@@ -21,23 +23,31 @@ concurrency:
 jobs:
   drift:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install the latest covered tools
+        continue-on-error: true
         run: npm install -g @anthropic-ai/claude-code @openai/codex @github/copilot
       - name: Check upstream pins
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 tests/check_upstream.py --json upstream.json --markdown upstream.md || true
       - name: Run the conformance probes
+        if: ${{ !cancelled() }}
+        timeout-minutes: 25
         run: >-
           python3 tests/conformance/run.py --require-tools
           --json conformance.json --markdown conformance.md || true
       - name: Open or update the drift issue
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
