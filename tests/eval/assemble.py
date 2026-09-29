@@ -136,10 +136,15 @@ Every branch and tag in the final repository, each with its changes against the 
         out
         / f"{manifest['date']}-{manifest['scenario']}-r{manifest['rep']}-{manifest['arm']}{suffix}.md"
     )
-    if target.exists():
-        # a record is evidence other files cite; a later run must take a new repetition number
-        raise FileExistsError(f"{target.name} already exists; prepare with a new --first-rep")
-    target.write_text(doc, encoding="utf-8")
+    # a record is evidence other files cite, so it is never replaced; an exclusive create makes
+    # the filesystem enforce that even against a concurrent assembly
+    try:
+        with target.open("x", encoding="utf-8") as record:
+            record.write(doc)
+    except FileExistsError:
+        raise FileExistsError(
+            f"{target.name} already exists; prepare with a new --first-rep"
+        ) from None
     return target
 
 

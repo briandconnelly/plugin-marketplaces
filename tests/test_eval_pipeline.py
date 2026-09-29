@@ -1,6 +1,7 @@
 """Run prepare → collect → assemble → summarize on a scripted arm, with no model and no CLI."""
 
 import json
+from pathlib import Path
 
 import pytest
 from assemble import assemble
@@ -41,7 +42,7 @@ def write_transcript(path, prompt, calls, report):
     path.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
 
 
-def test_a_scripted_run_becomes_a_valid_record(tmp_path):
+def test_a_scripted_run_becomes_a_valid_record(tmp_path, monkeypatch):
     runs, tasks, out = tmp_path / "runs", tmp_path / "tasks", tmp_path / "out"
     tasks.mkdir()
     out.mkdir()
@@ -110,6 +111,15 @@ def test_a_scripted_run_becomes_a_valid_record(tmp_path):
     before = record.read_text()
     with pytest.raises(FileExistsError, match=record.name):
         assemble(run, tasks, out, "Adjudication: a second assembly.")
+    assert record.read_text() == before
+    # Copilot review of PR #5: the refusal must hold even when the file appears between a
+    # check and the write, so the write itself must be an exclusive create
+    real_exists = Path.exists
+    with monkeypatch.context() as patch:
+        # scoped: undoing the whole monkeypatch would restore the GIT_* variables conftest removes
+        patch.setattr(Path, "exists", lambda self: False if self == record else real_exists(self))
+        with pytest.raises(FileExistsError):
+            assemble(run, tasks, out, "Adjudication: a racing assembly.")
     assert record.read_text() == before
     # a credential anywhere in the record stops it from being written
     with (art / "report.md").open("a") as report:
