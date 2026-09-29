@@ -70,6 +70,8 @@ def run_checks(
         statuses["schema.portable"] = (Status.SKIPPED, "no portable manifests")
     else:
         statuses["schema.portable"] = (statuses["schema.portable"][0], portable_counts.note())
+    if not failed("policy") and not policy.readers:
+        statuses["policy"] = (Status.SKIPPED, "no reader declared or inferred")
     if not failed("local") and not active_catalogs(repo, policy):
         statuses["local"] = (Status.SKIPPED, "no catalog is read by a declared reader")
     for group in NOT_IMPLEMENTED:

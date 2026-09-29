@@ -15,6 +15,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 ## Entries
 
 - Required entry fields are `name` and `source`; an entry also accepts every `plugin.json` field [E1].
+- An entry `name` may not contain spaces, control characters, or bidirectional-formatting characters [E1].
 - The entry `name` is the install id (`<name>@<marketplace>`) and the `enabledPlugins` key, and the manifest `name` prefixes the plugin's components; a mismatch does not block install by the entry name: `claude plugin list` and the cache directory then use the entry name while `claude plugin details` heads its output with the manifest name, and installing by the manifest name fails with `Plugin "<x>" not found in marketplace` (R8) [E3] [E13] [E15]
 - When the plugin has its own `plugin.json`, entry `mcpServers`, `lspServers`, `userConfig`, and `channels` are ignored, and entry display fields override the manifest's [E1].
 - `strict` (default `true`) makes `plugin.json` the authority and appends entry component fields to it, except `hooks`, whose matchers replace the manifest's per event; with `strict: false`, an entry that declares any component field while `plugin.json` also exists fails with `conflicting manifests` [E1].
@@ -50,7 +51,7 @@ Relative paths do not resolve when the catalog itself is fetched as a bare `mark
 
 ## Names
 
-- Marketplace names may not contain spaces, `/`, `\`, `..`, or control characters; a list of official names, `npm`, `github`, and similar words, and the `claudeai-` prefix are reserved, and some reserved spellings pass `validate` but fail at `marketplace add` [E1] [E3] [E4].
+- Marketplace names may not contain spaces, `/`, `\`, `..`, control characters, or bidirectional-formatting characters, and may not be `.`; a list of official names, `npm`, `github`, and similar words, and the `claudeai-` prefix are reserved, and some reserved spellings pass `validate` but fail at `marketplace add` [E1] [E3] [E4].
 - Plugin names are kebab-case with no spaces, `@`, `:`, or path separators [E2].
 
 ## Versions and updates

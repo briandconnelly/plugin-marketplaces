@@ -84,3 +84,17 @@ def test_claude_only_marketplace_is_not_checked_for_codex(tmp_path):
     report = run_checks(tmp_path, use_claude=False)
     assert sorted(f.check for f in report.findings) == ["policy.inferred"]
     assert report.exit_code(Severity.ERROR) == 0
+
+
+def test_a_missing_root_is_a_validator_failure(tmp_path, capsys):
+    # PR #1 deferred: a mistyped path used to be reported as "no catalog found" and exit 1
+    missing = tmp_path / "no-such-marketplace"
+    assert check_marketplace.main([str(missing), "--no-claude"]) == 2
+    assert "is not a directory" in capsys.readouterr().err
+
+
+def test_policy_is_skipped_not_passed_when_no_reader_is_declared_or_inferred(tmp_path):
+    # PR #1 deferred: with no readers there is nothing to check compatibility against
+    statuses = run_checks(tmp_path, use_claude=False).statuses
+    assert statuses["policy"][0] == Status.SKIPPED
+    assert "no reader" in statuses["policy"][1]
