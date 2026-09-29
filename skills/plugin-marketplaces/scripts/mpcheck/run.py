@@ -11,6 +11,7 @@ from mpcheck.discover import discover
 from mpcheck.model import Finding, Severity, Status
 from mpcheck.policy import load_policy
 from mpcheck.readers import load_readers
+from mpcheck.remote import Fetch, check_remote
 
 GROUPS = (
     "schema.parse",
@@ -22,7 +23,7 @@ GROUPS = (
     "discovery",
     "package-load",
 )
-NOT_IMPLEMENTED = ("remote", "discovery", "package-load")
+NOT_IMPLEMENTED = ("discovery", "package-load")
 
 
 @dataclass
@@ -42,6 +43,8 @@ def run_checks(
     policy_path: Path | None = None,
     use_claude: bool = True,
     runner: Runner | None = None,
+    remote: bool = False,
+    fetch: Fetch | None = None,
 ) -> Report:
     readers = load_readers()
     repo, findings = discover(root, readers)
@@ -59,6 +62,14 @@ def run_checks(
     else:
         claude_status, claude_note = Status.SKIPPED, "disabled with --no-claude"
 
+    if remote:
+        remote_findings, remote_status, remote_note = check_remote(
+            repo, active_catalogs(repo, policy), fetch
+        )
+        findings += remote_findings
+    else:
+        remote_status, remote_note = Status.SKIPPED, "not requested; run with --remote"
+
     def failed(group: str) -> bool:
         return any(f.group == group and f.severity == Severity.ERROR for f in findings)
 
@@ -74,6 +85,7 @@ def run_checks(
         statuses["policy"] = (Status.SKIPPED, "no reader declared or inferred")
     if not failed("local") and not active_catalogs(repo, policy):
         statuses["local"] = (Status.SKIPPED, "no catalog is read by a declared reader")
+    statuses["remote"] = (remote_status, remote_note)
     for group in NOT_IMPLEMENTED:
         statuses[group] = (Status.SKIPPED, "not implemented in this version")
     return Report(findings, statuses)
