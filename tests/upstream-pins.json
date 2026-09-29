@@ -4,6 +4,9 @@
     "claude-code.md#E12": "the validator's own source",
     "codex.md#E6": "cites only the research archive",
     "freshness.md#E1": "this repository's tests",
+    "freshness.md#E2": "this repository's freshness tooling",
+    "freshness.md#E3": "this repository's freshness tooling",
+    "freshness.md#E4": "this repository's freshness tooling",
     "validation.md#E2": "the validator's own source and tests"
   },
   "pins": [

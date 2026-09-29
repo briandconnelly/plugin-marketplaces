@@ -207,6 +207,8 @@ Reader source-type tables live in one data file, `scripts/mpcheck/data/readers.j
 - `.github/workflows/upstream-drift.yml`: weekly schedule plus manual dispatch; runs `check_upstream.py`; opens one issue, or updates the open one, listing changes and affected sections; does nothing when nothing changed.
 - `tests/conformance.py`: runs behavioural probes against the locally installed tools, each probe encoding one fact (for example "Codex skips a `github` source", "Codex reads `.claude-plugin/marketplace.json`", "`claude plugin validate` does not flag entry `hooks` given as a path"); a flipped expectation names the stale fact and its reference section; a missing tool yields `skipped`.
 - The refresh procedure in `freshness.md` re-verifies a fact before re-pinning it; re-pinning without re-verification is the failure this tooling exists to prevent.
+- Deviation (owner, 2026-09-28): each tool's `--help` text is pinned by `tests/conformance/run.py`, which runs the tools, not by `upstream-pins.json`, because `check_upstream.py` runs no tool CLI; `upstream-pins.json` instead pins each tool's latest published npm version.
+- Deviation (owner, 2026-09-28): the weekly Action also installs the latest claude, codex, and copilot CLIs from npm on its throwaway runner and runs the conformance probes, so a behavioural change surfaces in the same issue.
 
 ## 10. Testing
 
