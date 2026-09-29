@@ -1,0 +1,12 @@
+{
+  "name": "plugin-marketplaces",
+  "owner": {"name": "Brian Connelly"},
+  "description": "The plugin-marketplaces skill, published from its own repository.",
+  "plugins": [
+    {
+      "name": "plugin-marketplaces",
+      "source": "./",
+      "description": "Skill for user-hosted plugin marketplaces. It ships a Python validator that the agent runs on request; no hooks, MCP servers, LSP servers, or bin/, and no external services."
+    }
+  ]
+}

@@ -40,6 +40,11 @@ def preamble(text: str) -> list[str]:
     return _quote(_section(text, "### Arm preamble"))
 
 
+def treatment(text: str) -> list[str]:
+    """The lines a with-skill arm's prompt adds after the preamble."""
+    return _quote(_section(text, "### Treatment lines"))
+
+
 def scoring(text: str) -> str:
     return _section(text, "## Scoring (every scenario)").strip()
 
@@ -53,9 +58,24 @@ def scenario(text: str, number: int) -> Scenario:
     return Scenario(number, "\n".join(_quote(prompt)), criteria.strip())
 
 
-def dispatch_prompt(text: str, number: int, workdir: Path, upstream: Path | None) -> str:
+def dispatch_prompt(
+    text: str,
+    number: int,
+    workdir: Path,
+    upstream: Path | None,
+    skill: Path | None = None,
+    validator: Path | None = None,
+) -> str:
     item = scenario(text, number)
     lines = [line for line in preamble(text) if item.has_upstream or "UPSTREAM" not in line]
+    if skill is not None:
+        if validator is None:
+            raise ValueError("a with-skill prompt needs the installed validator's path")
+        rendered = [
+            line.replace("SKILLDIR", str(skill)).replace("VALIDATOR", str(validator))
+            for line in treatment(text)
+        ]
+        lines += rendered
     prompt = "\n".join(lines) + "\n\n" + item.prompt
     prompt = prompt.replace("WORKDIR", str(workdir))
     if upstream is not None:

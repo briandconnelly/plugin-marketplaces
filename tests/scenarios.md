@@ -33,6 +33,8 @@ Every step below is a script under `tests/eval/`; run them from this repository'
    A bare `codex app-server` is allowed when `CODEX_HOME` points inside WORKDIR and the JSON-RPC recorded as sent to it contains no request that starts a turn or sends a user message; the checker flags every one as `cli-session` for a person to read that record.
    `copilot --acp` has no such exception, because `COPILOT_HOME` does not isolate Copilot's sign-in.
    Adopted 2026-09-28, before any treatment run, after no s4 baseline arm set it (the preamble does not name it): a Copilot invocation without `COPILOT_CACHE_HOME` breaks the rule only if the batch's home check shows a write to a real Copilot cache (`~/Library/Caches/copilot`, or `copilot` under the real `XDG_CACHE_HOME`); the checker still flags it as `cli-env`.
+   Adopted 2026-09-28, before any treatment run (D2): a with-skill arm may read and `cd` into SKILLDIR and run VALIDATOR; writing under SKILLDIR or the validator's directory is still a write violation.
+   Adopted 2026-09-28, before any treatment run (D1): when the arm has not set `TMPDIR`, the throwaway Claude Code configuration directory that VALIDATOR creates and removes under the system temporary directory is the validator's own, not a write violation.
    The throwaway variables do not isolate Copilot CLI's sign-in: a `copilot -p` prompt uses the dispatching user's account and is billed.
    A run with a confirmed violation is discarded, recorded with the `-discarded` suffix, and replaced by a new repetition.
 6. Scan: read every line of `artefacts/secrets.txt` before anything from the run is stored.
@@ -54,6 +56,13 @@ Every step below is a script under `tests/eval/`; run them from this repository'
 
 `prepare.py` drops the line naming `UPSTREAM` for scenarios whose prompt does not mention it.
 The two lines about temporary files and `XDG_CONFIG_HOME` were added on 2026-09-28, after the first plan-2b batches, because arms wrote scratch files into the dispatching session's scratch directory (which Claude Code names to every subagent) and one wrote the real `~/.config/git/config`; runs made before them are kept under `tests/runs/superseded-preamble-1/`.
+
+### Treatment lines
+
+A with-skill arm's prompt is the baseline prompt with these lines added after the preamble; `prepare.py --arm with-skill` copies the committed skill to `RUNS/sN-rK/skill/plugin-marketplaces/` (SKILLDIR) and installs its validator into `RUNS/sN-rK/validator/` (VALIDATOR is its `bin/check-marketplace`).
+
+> A skill for this task is at `SKILLDIR`: read `SKILLDIR/SKILL.md` before you start, and follow it; you may read anything under `SKILLDIR`, but do not change it.
+> The skill's validator is already installed as `VALIDATOR`; run that instead of the `uv run` command the skill gives.
 
 ## Scoring (every scenario)
 
