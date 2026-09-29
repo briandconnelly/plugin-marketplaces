@@ -19,6 +19,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each fact cites a row of the
 - When the plugin has its own `plugin.json`, entry `mcpServers`, `lspServers`, `userConfig`, and `channels` are ignored, and entry display fields override the manifest's [E1].
 - `strict` (default `true`) makes `plugin.json` the authority and appends entry component fields to it; with `strict: false`, an entry that declares any component field while `plugin.json` also exists fails with `conflicting manifests` [E1].
 - Entry `hooks` must be an inline object: an entry giving `hooks` as a path or array passes `claude plugin validate`, installs, and then fails to load with "the file-path and array forms are not yet supported in a marketplace entry" [E1] [E5].
+- The inline object is the event map itself (`{"SessionStart": [...]}`); `claude plugin validate` rejects the wrapped form a `hooks/hooks.json` file uses (`{"hooks": {...}}`) with `plugins.<n>.hooks: Invalid input` [E14].
 
 ## Sources
 
@@ -94,3 +95,4 @@ Conformance probes: `claude-lists-commands-as-skills`, `claude-reads-adapter-not
 | E11 | plan-2b baselines s4-r4, s4-r7, s4-r8, and s4-r9: `claude plugin install --config` with a sensitive value tried the macOS keychain; `tests/runs/2026-09-28-baseline-summary-2b.md`, Isolation | run |
 | E12 | observed in plan 1 and recorded where the validator isolates it: `skills/plugin-marketplaces/scripts/mpcheck/checks_schema.py`, `_default_runner` | source |
 | E13 | plan-2c with-skill runs of scenario 6 on claude 2.1.284 (`install lint@acme-tools` succeeded and `details` showed `linter`; `install linter@acme-tools` gave not found); `tests/runs/evidence/2026-09-28-s6-r1-with-skill-tool-results.jsonl` and `tests/runs/evidence/2026-09-28-s6-r3-with-skill-tool-results.jsonl` | run |
+| E14 | plan-3 probes on claude 2.1.284; `docs/research/2026-09-28-plan-3-probes.md`, Entry `hooks` forms | probe |

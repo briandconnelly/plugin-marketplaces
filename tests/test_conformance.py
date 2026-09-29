@@ -235,6 +235,16 @@ def test_help_pin_same_changed_and_unpinned(help_dir):
     )
 
 
+def test_help_pins_exist_for_every_help_command():
+    pinned = {p.name for p in (ROOT / "tests" / "conformance" / "help").glob("*.txt")}
+    assert pinned == {run.help_file(a).name for a in run.HELP_COMMANDS}
+    evidence = (ROOT / "tests" / "conformance" / "help" / "EVIDENCE").read_text().strip()
+    assert evidence.startswith("docs/research/") and (ROOT / evidence).is_file()
+    record = (ROOT / evidence).read_text(encoding="utf-8")
+    for path in (ROOT / "tests" / "conformance" / "help").glob("*.txt"):
+        assert run.sha256(path.read_text(encoding="utf-8")) in record, path.name
+
+
 def test_repin_help_refuses_unless_the_record_names_each_text(help_dir, monkeypatch):
     research = help_dir / "docs" / "research"
     research.mkdir(parents=True)
