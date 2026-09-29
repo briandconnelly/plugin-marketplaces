@@ -12,7 +12,8 @@ re-verify when that pin changes.
 `repin` records the current upstream state for pins whose facts were re-verified; it refuses
 unless the evidence file exists under `docs/research/` and names every pin it re-pins and the
 exact value it would pin (a doc's sha256, a file's blob, a version, a directory's entries).
-An npm pin whose package has a newer version reports `released`: listed, but not a finding.
+An npm pin whose `latest` is a strictly newer `X.Y.Z` release reports `released`: listed, but
+not a finding; any other move of `latest`, such as a rollback, is `changed`.
 Exit 0 when every pin is unchanged or only released, 1 when any changed or errored, 2 on bad usage.
 """
 
@@ -120,6 +121,12 @@ def npm_latest(package: str, fetch: Fetch) -> str:
     return json.loads(fetch(f"https://registry.npmjs.org/{package}/latest"))["version"]
 
 
+def release(version: str) -> tuple[int, ...] | None:
+    """A plain `X.Y.Z` release as a comparable tuple; None for anything else."""
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
 def snapshot_path(pin_id: str) -> Path:
     return SNAPSHOTS / f"{pin_id}.txt"
 
@@ -167,7 +174,14 @@ def check_pin(pin: dict[str, Any], fetch: Fetch) -> PinResult:
             now = npm_latest(pin["package"], fetch)
             if now == pin["version"]:
                 return result("same", pin["version"], now)
-            return result("released", pin["version"], now, f"{pin['package']} {now} is published")
+            new, old = release(now), release(pin["version"])
+            if new is not None and old is not None and new > old:
+                return result(
+                    "released", pin["version"], now, f"{pin['package']} {now} is published"
+                )
+            return result(
+                "changed", pin["version"], now, f"`latest` of {pin['package']} is now {now}"
+            )
         return result("error", "", "", f"unknown pin kind {kind!r}")
     except Exception as exc:  # any failure to observe upstream is reported, never "same"
         return result("error", "", "", f"{type(exc).__name__}: {exc}")

@@ -248,3 +248,20 @@ def test_pinned_snapshots_match_their_hashes():
 def test_the_live_upstream_can_be_read():
     results = cu.check(pins_file()["pins"], cu.http_fetch)
     assert [r.id for r in results if r.status == "error"] == []
+
+
+@pytest.mark.parametrize(
+    ("pinned", "latest", "status"),
+    [
+        ("1.9.0", "1.10.0", "released"),  # numeric, not string, order
+        ("1.10.0", "1.9.0", "changed"),  # a dist-tag moved backward
+        ("2.1.0", "2.0.0", "changed"),
+        ("2.0.0", "2.0.0-beta.1", "changed"),  # not a plain forward release
+        ("2.0.0", "not-a-version", "changed"),
+    ],
+)
+def test_only_a_strictly_newer_npm_release_is_quiet(pinned, latest, status):
+    # Copilot review of PR #5: a rollback of `latest` is drift, not a harmless release
+    pages = {"https://registry.npmjs.org/@o/cli/latest": json.dumps({"version": latest})}
+    pin = {"id": "n", "kind": "npm", "package": "@o/cli", "version": pinned, "affects": []}
+    assert cu.check_pin(pin, FakeUpstream(pages)).status == status
