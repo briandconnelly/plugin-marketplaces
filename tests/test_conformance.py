@@ -221,11 +221,12 @@ def test_the_sandbox_passes_no_credentials_and_keeps_every_home_inside_it(tmp_pa
 
 
 class FakeSandbox:
-    def __init__(self, output: str) -> None:
+    def __init__(self, output: str, exit: int | None = 0) -> None:
         self.output = output
+        self.exit = exit
 
     def run(self, *argv: str) -> Result:
-        return Result(argv, 0, self.output)
+        return Result(argv, self.exit, self.output)
 
 
 @pytest.fixture
@@ -244,6 +245,15 @@ def test_help_pin_same_changed_and_unpinned(help_dir):
     assert (
         changed.status == "changed" and "-Usage: a" in changed.diff and "+Usage: b" in changed.diff
     )
+
+
+@pytest.mark.parametrize("exit", [1, None])
+def test_a_failed_help_command_is_an_error_even_with_the_pinned_text(help_dir, exit):
+    # Copilot review of PR #5: a broken CLI that still prints the pinned text is not "same"
+    argv = ("codex", "plugin", "--help")
+    (help_dir / "codex-plugin.txt").write_text("Usage: a\n", encoding="utf-8")
+    result = run.check_help(argv, FakeSandbox("Usage: a\n", exit=exit))
+    assert result.status == "error" and result.status in run.FAILING
 
 
 def test_help_pins_exist_for_every_help_command():

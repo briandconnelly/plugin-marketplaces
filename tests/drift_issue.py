@@ -24,7 +24,7 @@ LABEL = "upstream-drift"
 TITLE = "Upstream drift: facts to re-verify"
 QUIET = {"same", "released"}  # a newer npm release alone is listed in the body, not a finding
 PROBE_FAILING = {"flipped", "broken", "error", "skipped"}
-HELP_FAILING = {"changed", "unpinned", "skipped"}
+HELP_FAILING = {"changed", "unpinned", "skipped", "error"}
 
 Gh = Callable[[Sequence[str]], str]
 

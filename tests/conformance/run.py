@@ -103,7 +103,10 @@ def check_help(argv: tuple[str, ...], sandbox: Runs) -> HelpResult:
     command = " ".join(argv)
     if shutil.which(argv[0]) is None:
         return HelpResult(command, "skipped", "")
-    now = sandbox.run(*argv).output
+    result = sandbox.run(*argv)
+    if not result.ok:
+        return HelpResult(command, "error", f"exit {result.exit}: {result.output[-400:]}")
+    now = result.output
     pinned = help_file(argv)
     if not pinned.exists():
         return HelpResult(command, "unpinned", "")

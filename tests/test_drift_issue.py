@@ -59,6 +59,7 @@ def test_nothing_changed_touches_no_issue(tmp_path):
         (CLEAN_UPSTREAM, {**CLEAN_CONFORMANCE, "probes": [{"id": "x", "status": "flipped"}]}, "probe `x` flipped"),
         (CLEAN_UPSTREAM, {**CLEAN_CONFORMANCE, "probes": [{"id": "x", "status": "skipped"}]}, "probe `x` skipped"),
         (CLEAN_UPSTREAM, {**CLEAN_CONFORMANCE, "help": [{"command": "c", "status": "changed"}]}, "help `c` changed"),
+        (CLEAN_UPSTREAM, {**CLEAN_CONFORMANCE, "help": [{"command": "c", "status": "error"}]}, "help `c` error"),
     ],
 )  # fmt: skip
 def test_each_kind_of_change_opens_an_issue(tmp_path, upstream, conformance, expected):
