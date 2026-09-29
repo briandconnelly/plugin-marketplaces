@@ -13,6 +13,7 @@ They are archived evidence, so they are exempt from this repo's one-sentence-per
 | [2026-09-27-phase0-probes.md](2026-09-27-phase0-probes.md) | Phase-0 gate: headless isolated probes for Copilot CLI and VS Code | copilot and VS Code 1.139.1 on this machine |
 | [2026-09-27-copilot-pluginroot-probe.md](2026-09-27-copilot-pluginroot-probe.md) | Whether Copilot CLI honours `metadata.pluginRoot` | copilot 1.0.88 on this machine |
 | [2026-09-28-codex-command-migration-probe.md](2026-09-28-codex-command-migration-probe.md) | How Codex loads a Claude Code plugin's commands (hand-written record) | codex-cli 0.157.1 on this machine |
+| [2026-09-28-load-and-update-probes.md](2026-09-28-load-and-update-probes.md) | Seeing what loaded without a model session, update delivery without a version bump, Copilot CLI source handling, and dual-packaged plugins (hand-written record; scripts in [2026-09-28-load-and-update-probes/](2026-09-28-load-and-update-probes/)) | claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89 on this machine |
 
 These reports are inputs, not references: the skill's references re-verify every fact they use and carry their own provenance.
 
