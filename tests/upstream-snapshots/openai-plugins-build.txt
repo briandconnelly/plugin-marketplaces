@@ -652,36 +652,8 @@ canonical in either case.
 
 ### Manifest fields
 
-Use the root manifest fields to define portable package metadata:
-
-- `$schema` declares the supported Agent Plugins version.
-- `name` identifies the plugin. `version` and `description` provide optional
-  release and discovery metadata.
-- `author`, `homepage`, `repository`, `license`, and `keywords` provide
-  publisher and discovery metadata.
-
-Use `extensions.com.openai` for OpenAI-specific fields:
-
-- `apps` points to registered MCP server mappings in `.app.json`.
-- `hooks` points to lifecycle hook configuration.
-- `interface` controls how OpenAI install surfaces present the plugin.
-
-Portable packages always discover skills in `skills/` and MCP servers in
-`mcp.json`. A `skills` or `mcpServers` declaration in the inline extension or
-compatibility overlay can't replace, disable, or add to those components.
-Those declarations apply only to legacy packages without a recognized portable
-root manifest.
-
-Use the `interface` object for install-surface metadata:
-
-- `displayName`, `shortDescription`, and `longDescription` control the title
-  and descriptive copy.
-- `developerName`, `category`, and `capabilities` add publisher and capability
-  metadata.
-- `websiteURL`, `privacyPolicyURL`, and `termsOfServiceURL` provide external
-  links.
-- `defaultPrompt`, `brandColor`, `composerIcon`, `logo`, and `screenshots`
-  control starter prompts and visual presentation.
+See [Automatically provide submission and review information](https://developers.openai.com/plugins/deploy/submission#automatically-provide-submission-and-review-information)
+for manifest examples, supported fields, requirements, and import behavior.
 
 ### Path rules
 

@@ -38,3 +38,12 @@ def test_the_probes_cannot_use_up_the_whole_job():
     job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["drift"]
     probe = step("Run the conformance probes")
     assert probe.get("timeout-minutes", job["timeout-minutes"]) < job["timeout-minutes"]
+
+
+def test_the_runner_allows_the_probes_network_denial_before_they_run():
+    # the first hosted run (2026-09-29) refused `unshare -rn`: ubuntu-24.04's AppArmor blocks
+    # unprivileged user namespaces, so every probe failed closed and none ran
+    names = [s.get("name") for s in steps()]
+    allow = step("Allow unprivileged user namespaces for the probes' network denial")
+    assert "kernel.apparmor_restrict_unprivileged_userns=0" in allow["run"]
+    assert names.index(allow["name"]) < names.index("Run the conformance probes")

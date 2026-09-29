@@ -40,6 +40,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 tests/check_upstream.py --json upstream.json --markdown upstream.md || true
+      - name: Allow unprivileged user namespaces for the probes' network denial
+        # ubuntu-24.04's AppArmor blocks them, and without them the probes refuse to run
+        # (`unshare -rn`); the setting lasts only as long as this throwaway runner
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run the conformance probes
         if: ${{ !cancelled() }}
         timeout-minutes: 25
