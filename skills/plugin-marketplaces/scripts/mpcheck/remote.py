@@ -13,8 +13,10 @@ and never `passed`; only a definite mismatch is an error.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
+import re
 import subprocess
 import tempfile
 import urllib.error
@@ -27,6 +29,10 @@ from pathlib import Path
 from mpcheck.discover import Catalog, Repo
 from mpcheck.model import Finding, Severity, Status
 from mpcheck.readers import GIT_SOURCE_TYPES, source_type
+
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+HTTP_ERRORS = (urllib.error.URLError, OSError, ValueError, http.client.HTTPException)
 
 GIT_TIMEOUT = 120
 HTTP_TIMEOUT = 30
@@ -50,13 +56,13 @@ Fetch = Callable[[str], bytes]
 
 
 def http_get(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
             body = response.read(DOCUMENT_LIMIT + 1)
     except urllib.error.HTTPError as exc:
         raise FetchError(exc.code, f"HTTP {exc.code}") from None
-    except (urllib.error.URLError, OSError) as exc:
+    except HTTP_ERRORS as exc:
         raise FetchError(None, str(getattr(exc, "reason", exc))) from None
     if len(body) > DOCUMENT_LIMIT:
         raise FetchError(None, f"larger than {DOCUMENT_LIMIT} bytes")
@@ -65,9 +71,9 @@ def http_get(url: str) -> bytes:
 
 def http_sha256(url: str) -> str:
     """The sha256 of a download, read in chunks so an archive is never held in memory."""
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest, size = hashlib.sha256(), 0
     try:
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
             while chunk := response.read(CHUNK):
                 size += len(chunk)
@@ -76,7 +82,7 @@ def http_sha256(url: str) -> str:
                 digest.update(chunk)
     except urllib.error.HTTPError as exc:
         raise FetchError(exc.code, f"HTTP {exc.code}") from None
-    except (urllib.error.URLError, OSError) as exc:
+    except HTTP_ERRORS as exc:
         raise FetchError(None, str(getattr(exc, "reason", exc))) from None
     return digest.hexdigest()
 
@@ -121,6 +127,40 @@ class Tally:
             self.passed += 1
 
 
+def safe(value: object) -> bool:
+    """A string git or a URL may receive: non-empty and never read as an option."""
+    return isinstance(value, str) and bool(value) and not value.startswith("-")
+
+
+def checkable(kind: str, source: dict[str, object]) -> bool:
+    """Whether a remote source is well-formed enough to contact; the local level reports the rest."""
+    if kind in GIT_SOURCE_TYPES:
+        if kind == "github" and not (
+            isinstance(source.get("repo"), str) and REPO_RE.fullmatch(str(source["repo"]))
+        ):
+            return False
+        if kind != "github" and not safe(source.get("url")):
+            return False
+        if "sha" in source and not (
+            isinstance(source["sha"], str) and SHA_RE.fullmatch(source["sha"])
+        ):
+            return False
+        return all(key not in source or safe(source[key]) for key in ("ref", "path"))
+    if kind == "npm":
+        registry = source.get("registry")
+        return (
+            safe(source.get("package"))
+            and safe(source.get("version"))
+            and (
+                registry is None
+                or (isinstance(registry, str) and registry.startswith(("https://", "http://")))
+            )
+        )
+    if kind == "archive":
+        return isinstance(source.get("url"), str) and isinstance(source.get("sha256"), str)
+    return False
+
+
 def groups_of(catalogs: list[Catalog]) -> list[Group]:
     found: dict[tuple[str, ...], Group] = {}
     for catalog in catalogs:
@@ -129,6 +169,8 @@ def groups_of(catalogs: list[Catalog]) -> list[Group]:
             if not isinstance(source, dict):
                 continue
             kind = source_type(source)
+            if not checkable(kind, source):
+                continue  # malformed: the local level reports it, and git must never see it
             if kind in GIT_SOURCE_TYPES:
                 key = (kind, git_url(source), str(source.get("sha")), str(source.get("path", "")))
             elif kind == "npm":
@@ -199,9 +241,9 @@ def inconclusive(group: Group, why: str) -> tuple[Status, list[Finding]]:
 
 
 def git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    # GIT_TERMINAL_PROMPT stops https prompts only; ssh would still ask for a passphrase
-    env.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")
+    # nothing may prompt: no terminal prompts, no askpass, and no controlling terminal for
+    # ssh to ask on; the caller's own ssh command (GIT_SSH_COMMAND, core.sshCommand) stays
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"}
     return subprocess.run(
         ["git", *args],
         cwd=cwd,
@@ -211,6 +253,7 @@ def git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]
         text=True,
         timeout=GIT_TIMEOUT,
         check=False,
+        start_new_session=True,
     )
 
 
@@ -229,7 +272,7 @@ def check_refs(group: Group, url: str, sha: str) -> list[Finding]:
             by_ref.setdefault(ref, use)
     for ref, use in sorted(by_ref.items()):
         try:
-            result = git("ls-remote", "--exit-code", url, ref, ref + "^{}")
+            result = git("ls-remote", "--exit-code", "--", url, ref, ref + "^{}")
         except subprocess.TimeoutExpired:
             continue
         if result.returncode == 2:
@@ -283,7 +326,7 @@ def check_unpinned(group: Group, url: str) -> tuple[Status, list[Finding]]:
     use = group.uses[0]
     ref = ref_of(use)
     try:
-        result = git("ls-remote", "--exit-code", url, *([ref] if ref else ["HEAD"]))
+        result = git("ls-remote", "--exit-code", "--", url, *([ref] if ref else ["HEAD"]))
     except subprocess.TimeoutExpired:
         return inconclusive(group, f"git timed out after {GIT_TIMEOUT} s")
     if result.returncode == 0:
@@ -307,7 +350,7 @@ def check_git(group: Group) -> tuple[Status, list[Finding]]:
         try:
             init = git("init", "-q", str(work))
             fetched = (
-                git("fetch", "-q", "--depth", "1", "--no-tags", url, sha, cwd=work)
+                git("fetch", "-q", "--depth", "1", "--no-tags", "--", url, sha, cwd=work)
                 if init.returncode == 0
                 else init
             )
@@ -332,7 +375,15 @@ def check_git(group: Group) -> tuple[Status, list[Finding]]:
                 )
             )
             return Status.FAILED, findings
-        manifest = read_manifest(work, base)
+        path, manifest = read_manifest(work, base)
+    if path is not None and manifest is None:
+        message = (
+            f"{path} at the pinned commit {sha[:12]} is not a JSON object, so no tool can load it"
+        )
+        return Status.FAILED, [
+            *findings,
+            finding("remote.manifest-invalid", Severity.ERROR, group.uses[0], message, "R4"),
+        ]
     failed = False
     if manifest is not None:
         for use in group.uses:
@@ -366,7 +417,9 @@ def check_git(group: Group) -> tuple[Status, list[Finding]]:
     return (Status.FAILED if failed else Status.PASSED), findings
 
 
-def read_manifest(work: Path, base: str) -> dict[str, object] | None:
+def read_manifest(work: Path, base: str) -> tuple[str | None, dict[str, object] | None]:
+    """(path, data) for the first manifest at the pin; data is None when it is unreadable,
+    and path is None when there is none, which is allowed (an entry can be the manifest)."""
     for rel in MANIFESTS:
         path = f"{base}/{rel}" if base else rel
         shown = git("show", f"FETCH_HEAD:{path}", cwd=work)
@@ -374,9 +427,9 @@ def read_manifest(work: Path, base: str) -> dict[str, object] | None:
             try:
                 data = json.loads(shown.stdout)
             except json.JSONDecodeError:
-                return None
-            return data if isinstance(data, dict) else None
-    return None
+                return path, None
+            return path, data if isinstance(data, dict) else None
+    return None, None
 
 
 # ---- npm and archive
@@ -412,6 +465,8 @@ def check_npm(group: Group, fetch: Fetch) -> tuple[Status, list[Finding]]:
 def check_archive(group: Group, digest: Callable[[str], str]) -> tuple[Status, list[Finding]]:
     source, use = group.source, group.uses[0]
     url, expected = str(source.get("url")), str(source.get("sha256", "")).lower()
+    if not url.startswith("https://"):
+        return inconclusive(group, f"only https archives are checked, not {url!r}")
     try:
         actual = digest(url)
     except FetchError as exc:

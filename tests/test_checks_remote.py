@@ -335,23 +335,28 @@ def test_an_unpinned_source_is_checked_for_the_ref_it_installs(tmp_path, upstrea
 
 
 def test_git_never_waits_for_a_password_or_passphrase(monkeypatch):
-    # GIT_TERMINAL_PROMPT stops https prompts only; ssh must run in batch mode unless the
-    # caller already chose an ssh command
+    # no controlling terminal and no askpass: nothing can prompt, and the caller's own ssh
+    # choice (GIT_SSH_COMMAND, GIT_SSH, core.sshCommand) is left alone (final review, #3)
     import mpcheck.remote as remote_module
 
-    seen: dict[str, str] = {}
+    seen: dict[str, object] = {}
 
     def fake_run(argv, **kwargs):
-        seen.update(kwargs["env"])
+        seen.update(kwargs)
         return subprocess.CompletedProcess(argv, 0, "", "")
 
-    monkeypatch.delenv("GIT_SSH_COMMAND", raising=False)
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i my-key")
     monkeypatch.setattr(subprocess, "run", fake_run)
     remote_module.git("ls-remote", "git@example.com:o/r.git")
-    assert seen["GIT_TERMINAL_PROMPT"] == "0" and "BatchMode=yes" in seen["GIT_SSH_COMMAND"]
-    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i my-key")
+    env = seen["env"]
+    assert isinstance(env, dict)
+    assert env["GIT_TERMINAL_PROMPT"] == "0" and env["SSH_ASKPASS_REQUIRE"] == "never"
+    assert env["GIT_SSH_COMMAND"] == "ssh -i my-key"
+    assert seen["start_new_session"] is True and seen["stdin"] == subprocess.DEVNULL
+    monkeypatch.delenv("GIT_SSH_COMMAND")
     remote_module.git("ls-remote", "git@example.com:o/r.git")
-    assert seen["GIT_SSH_COMMAND"] == "ssh -i my-key"
+    env = seen["env"]
+    assert isinstance(env, dict) and "GIT_SSH_COMMAND" not in env
 
 
 def test_archives_are_hashed_as_a_stream(monkeypatch):
@@ -378,3 +383,66 @@ def test_archives_are_hashed_as_a_stream(monkeypatch):
         remote_module.http_sha256("https://example.com/p.zip") == hashlib.sha256(body).hexdigest()
     )
     assert reads and all(0 < size <= remote_module.CHUNK for size in reads)
+
+
+# ---- final review of plan 4a
+
+
+def test_a_hostile_catalog_cannot_make_git_run_a_command(tmp_path, upstream):
+    # a `url` or `sha` that starts with `-` reached git as an option: --upload-pack runs a
+    # command with the caller's credentials, as CI running --remote on a pull request would
+    marks = [tmp_path / f"pwned{n}" for n in range(3)]
+    root = catalog(
+        tmp_path / "m",
+        url_entry("a", f"--upload-pack=touch {marks[0]};", "a" * 40),
+        url_entry("b", upstream["url"], f"--upload-pack=touch {marks[1]};"),
+        unpinned("c", f"--upload-pack=touch {marks[2]};", "main"),
+    )
+    report = run_checks(root, use_claude=False, remote=True)
+    assert [m.name for m in marks if m.exists()] == []
+    assert report.statuses["remote"][0] != Status.PASSED
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ({"source": "archive", "sha256": "f" * 64}, Status.SKIPPED),
+        ({"source": "archive", "url": "p.zip", "sha256": "f" * 64}, Status.INCONCLUSIVE),
+        ({"source": "archive", "url": "file:///etc/hosts", "sha256": "f" * 64}, Status.INCONCLUSIVE),
+        ({"source": "github", "sha": "a" * 40}, Status.SKIPPED),
+        ({"source": "npm", "package": "@acme/fmt", "version": "1.0.0", "registry": "not a url"}, Status.SKIPPED),
+        ({"source": "url", "sha": "a" * 40}, Status.SKIPPED),
+        ({"source": "url", "url": "https://example.invalid/r.git", "sha": 7}, Status.SKIPPED),
+    ],
+)  # fmt: skip
+def test_sources_the_local_level_rejects_are_not_contacted(tmp_path, monkeypatch, source, expected):
+    # final review #2: these crashed the run or reached `https://github.com/None.git`; the
+    # local level reports them, so the remote level leaves them alone, and it checks only
+    # https archives (spec §8)
+    root = catalog(tmp_path / "m", {"name": "x", "source": source, "description": "x"})
+    contacted: list[str] = []
+    real_run = subprocess.run
+
+    def counting(argv, *args, **kwargs):
+        if argv[:1] == ["git"] and argv[1:2] != ["init"]:
+            contacted.append(" ".join(argv))
+        return real_run(argv, *args, **kwargs)
+
+    def fetch(url: str) -> bytes:
+        contacted.append(url)
+        raise FetchError(None, "refused")
+
+    monkeypatch.setattr(subprocess, "run", counting)
+    status, _, _ = remote(root, None)  # the real downloaders: nothing may reach them
+    assert (status, contacted) == (expected, [])
+
+
+def test_an_unreadable_manifest_at_the_pin_fails(tmp_path, upstream):
+    src = Path(upstream["dir"]).parent / "src"
+    write(src, ".claude-plugin/plugin.json", "{not json\n")
+    git(src, "add", "-A")
+    git(src, "commit", "-qm", "broken")
+    git(src, "push", "-q", upstream["url"], "HEAD:refs/heads/broken")
+    sha = git(src, "rev-parse", "HEAD")
+    status, _, found = remote(catalog(tmp_path / "m", url_entry("beta", upstream["url"], sha)))
+    assert status == Status.FAILED and found == {"remote.manifest-invalid": ["error"]}
