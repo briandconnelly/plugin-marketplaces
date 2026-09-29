@@ -110,7 +110,7 @@
       "id": "openai-plugins-build",
       "kind": "doc",
       "url": "https://developers.openai.com/plugins/build/plugins.md",
-      "sha256": "4b003d3d35ba8cca78d99e073ea1218e3ec7a4e44030e569261e67bd7039cc8a",
+      "sha256": "cc5b62094f9c8fcd910c6ae72fa58c63a13191abdc29fb45b19500e241f71460",
       "affects": [
         "codex.md#E1",
         "codex.md#E3",
@@ -118,8 +118,8 @@
         "agent-plugins.md#E5",
         "multi-tool.md#E2"
       ],
-      "verified": "2026-09-28",
-      "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+      "verified": "2026-09-29",
+      "evidence": "docs/research/2026-09-29-openai-submission-page.md"
     },
     {
       "id": "openai-submit-claude-plugin",
@@ -132,6 +132,17 @@
       ],
       "verified": "2026-09-28",
       "evidence": "docs/research/2026-09-28-documentation-reverification.md"
+    },
+    {
+      "id": "openai-plugin-submission",
+      "kind": "doc",
+      "url": "https://developers.openai.com/plugins/deploy/submission.md",
+      "sha256": "b89bbdeecec9faf9e7023b4828937a9c0df572b5fc4b1249e471a216b3d7c3b6",
+      "affects": [
+        "codex.md#E3"
+      ],
+      "verified": "2026-09-29",
+      "evidence": "docs/research/2026-09-29-openai-submission-page.md"
     },
     {
       "id": "copilot-cli-plugin-reference",
