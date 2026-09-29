@@ -82,6 +82,8 @@ def collect(
         run_dir=str(run),
         home=str(Path.home()),
         start_cwd=t.start_cwd,
+        skill=manifest.get("skill"),
+        validator=manifest.get("validator"),
     )
     flags = check_calls(t.calls, layout) + symlink_flags(work, run)
     (art / "isolation-flags.txt").write_text("".join(f"{f}\n" for f in flags), encoding="utf-8")

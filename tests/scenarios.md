@@ -55,6 +55,13 @@ Every step below is a script under `tests/eval/`; run them from this repository'
 `prepare.py` drops the line naming `UPSTREAM` for scenarios whose prompt does not mention it.
 The two lines about temporary files and `XDG_CONFIG_HOME` were added on 2026-09-28, after the first plan-2b batches, because arms wrote scratch files into the dispatching session's scratch directory (which Claude Code names to every subagent) and one wrote the real `~/.config/git/config`; runs made before them are kept under `tests/runs/superseded-preamble-1/`.
 
+### Treatment lines
+
+A with-skill arm's prompt is the baseline prompt with these lines added after the preamble; `prepare.py --arm with-skill` copies the committed skill to `RUNS/sN-rK/skill/plugin-marketplaces/` (SKILLDIR) and installs its validator into `RUNS/sN-rK/validator/` (VALIDATOR is its `bin/check-marketplace`).
+
+> A skill for this task is at `SKILLDIR`: read `SKILLDIR/SKILL.md` before you start, and follow it; you may read anything under `SKILLDIR`, but do not change it.
+> The skill's validator is already installed as `VALIDATOR`; run that instead of the `uv run` command the skill gives.
+
 ## Scoring (every scenario)
 
 - Each criterion is pass or fail with one line of evidence pointing at the diff, the objective-check output, or the final report.

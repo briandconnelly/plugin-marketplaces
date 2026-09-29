@@ -246,3 +246,33 @@ def test_terminal_wrappers_are_unwrapped():
     assert kinds(W + env + "script -q /dev/null copilot --acp") == ["cli-prompt"]
     assert kinds(W + env + "script -q $PWD/t.log copilot") == ["cli-prompt"]
     assert kinds(W + env + "unbuffer copilot plugin list") == []
+
+
+def test_a_with_skill_arm_may_read_its_skill_and_run_its_validator():
+    lay = Layout(
+        "/R/s1-r1/repo",
+        None,
+        "/R/s1-r1",
+        "/Users/owner",
+        "/start",
+        skill="/R/s1-r1/skill/plugin-marketplaces",
+        validator="/R/s1-r1/validator/bin/check-marketplace",
+    )
+    assert (
+        kinds("cd /R/s1-r1/skill/plugin-marketplaces && cat SKILL.md references/codex.md", lay)
+        == []
+    )
+    assert kinds("/R/s1-r1/validator/bin/check-marketplace /R/s1-r1/repo --format json", lay) == []
+    assert kinds("touch /R/s1-r1/skill/plugin-marketplaces/SKILL.md", lay) == ["outside-write"]
+    assert kinds("/R/s1-r1/validator/bin/other-script", lay) == ["sourced-unknown"]
+    # without a skill, the same cd is outside WORKDIR
+    assert kinds("cd /R/s1-r1/skill/plugin-marketplaces") == ["outside-read"]
+
+
+def test_uv_writes_its_cache_outside_workdir_unless_told_otherwise():
+    run = "uv run /R/s2-r1/skill/plugin-marketplaces/scripts/check_marketplace.py /R/s2-r1/repo"
+    assert kinds(run) == ["outside-write"]
+    assert kinds(f"UV_CACHE_DIR=/R/s2-r1/repo/.tool-homes/uv {run}") == []
+    assert kinds(f"export UV_CACHE_DIR=/R/s2-r1/repo/.tool-homes/uv && {run}") == []
+    assert kinds("cd /R/s2-r1/repo && uvx check-marketplace .") == ["outside-write"]
+    assert kinds("uv --version") == []

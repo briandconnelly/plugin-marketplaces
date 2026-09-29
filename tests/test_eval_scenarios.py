@@ -1,5 +1,7 @@
+from pathlib import Path
+
 import pytest
-from scenario_doc import DOC, dispatch_prompt, preamble, scenario, scoring
+from scenario_doc import DOC, dispatch_prompt, preamble, scenario, scoring, treatment
 
 TEXT = DOC.read_text(encoding="utf-8")
 
@@ -42,3 +44,39 @@ def test_the_preamble_confines_temporary_files_and_xdg_config():
     text = " ".join(preamble(TEXT))
     assert "temporary file" in text and "`WORKDIR/.tool-homes/`" in text
     assert "XDG_CONFIG_HOME" in text
+
+
+def _recorded_prompt(number):
+    """The dispatch prompt of the first valid plan-2b baseline record for a scenario."""
+    runs = Path(__file__).resolve().parent / "runs"
+    path = sorted(runs.glob(f"2026-09-28-s{number}-r[0-9]*-baseline.md"))[0]
+    text = path.read_text(encoding="utf-8")
+    start = text.index("## Dispatch prompt\n\n```text\n") + len("## Dispatch prompt\n\n```text\n")
+    return text[start : text.index("\n```\n", start)]
+
+
+@pytest.mark.parametrize("number", range(1, 8))
+def test_baseline_prompts_are_what_the_baselines_received(number):
+    # a treatment arm is comparable only if the baseline text it extends is unchanged
+    upstream = Path("$RUN/weather-mcp") if scenario(TEXT, number).has_upstream else None
+    assert dispatch_prompt(TEXT, number, Path("$RUN/repo"), upstream) == _recorded_prompt(number)
+
+
+def test_a_treatment_prompt_is_the_baseline_plus_the_skill_lines(tmp_path):
+    work, up = tmp_path / "repo", tmp_path / "weather-mcp"
+    skill, validator = (
+        tmp_path / "skill" / "plugin-marketplaces",
+        tmp_path / "validator" / "bin" / "check-marketplace",
+    )
+    base = dispatch_prompt(TEXT, 1, work, up)
+    treated = dispatch_prompt(TEXT, 1, work, up, skill=skill, validator=validator)
+    lines = treatment(TEXT)
+    assert len(lines) == 2 and "SKILLDIR" in lines[0] and "VALIDATOR" in lines[1]
+    rendered = [
+        line.replace("SKILLDIR", str(skill)).replace("VALIDATOR", str(validator)) for line in lines
+    ]
+    assert treated == base.replace("\n\n", "\n" + "\n".join(rendered) + "\n\n", 1)
+    assert "SKILLDIR" not in treated and "VALIDATOR" not in treated
+    assert f"`{skill}/SKILL.md`" in treated
+    with pytest.raises(ValueError):
+        dispatch_prompt(TEXT, 1, work, up, skill=skill)

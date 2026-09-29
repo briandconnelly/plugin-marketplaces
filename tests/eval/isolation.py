@@ -9,8 +9,10 @@ It follows `sh -c` strings, but cannot see inside Python or other interpreter sc
 and reads every call that mentions `claude`, `codex`, or `copilot`.
 
 Flag kinds:
-- `outside-read`: a path outside the arm's run directory (reads) or outside WORKDIR (cd).
-- `outside-write`: a path written outside WORKDIR, including UPSTREAM.
+- `outside-read`: a path outside the arm's run directory (reads), or a `cd` outside WORKDIR,
+  UPSTREAM, and a with-skill arm's skill copy.
+- `outside-write`: a path written outside WORKDIR, including UPSTREAM, or a `uv`/`uvx` call
+  whose `UV_CACHE_DIR` is not inside WORKDIR.
 - `cli-prompt`: a claude/codex/copilot invocation outside the allowlist, which may send a prompt.
 - `cli-session`: a bare `codex app-server`, allowed only if the JSON-RPC it was sent starts
   no turn; a person checks that.
@@ -153,6 +155,8 @@ class Layout:
     run_dir: str | None
     home: str
     start_cwd: str
+    skill: str | None = None  # a with-skill arm's read-only copy of the skill
+    validator: str | None = None  # the validator installed for a with-skill arm
 
 
 @dataclass
@@ -358,7 +362,10 @@ class Checker:
             target = self.resolve(args[1], shell) if len(args) > 1 else self.layout.home
             if target is None:
                 return
-            if not (_inside(target, self.layout.work) or _inside(target, self.layout.upstream)):
+            if not any(
+                _inside(target, root)
+                for root in (self.layout.work, self.layout.upstream, self.layout.skill)
+            ):
                 self.flag("outside-read", f"cd {target}")
             shell.cwd = target
             return
@@ -376,7 +383,9 @@ class Checker:
             self.follow(args[1:2], shell, _Shell(shell.cwd, dict(shell.env), set(shell.exported)))
         elif args[0].startswith(("/", "./", "$")) and not name.startswith("python"):
             path = self.resolve(args[0], shell)
-            if path is not None and path in self.files:
+            if path is not None and path == self.layout.validator:
+                pass  # the installed validator: known code that runs no model and no tool config
+            elif path is not None and path in self.files:
                 self.follow(
                     args[0:1], shell, _Shell(shell.cwd, dict(shell.env), set(shell.exported))
                 )
@@ -385,6 +394,14 @@ class Checker:
         if name in ("git", "curl", "wget") and any(REMOTE.match(a) for a in args[1:]):
             # step 5: a deliberate remote fetch is contact unless it is read-only documentation
             self.flag("remote-fetch", " ".join(args)[:120])
+        if name in ("uv", "uvx") and not HELP_WORDS & set(args[1:2]):
+            cache = inline.get("UV_CACHE_DIR") or (
+                shell.env.get("UV_CACHE_DIR") if "UV_CACHE_DIR" in shell.exported else None
+            )
+            target = self.resolve(cache, shell) if cache else None
+            if not (target and _inside(target, self.layout.work)):
+                # uv writes its cache (and may fetch packages) outside WORKDIR by default
+                self.flag("outside-write", f"{name} cache: {' '.join(args)[:100]}")
         if name in CLI_VARS:
             self.cli(name, args[1:], shell, inline)
         self.paths(name, args, shell)
