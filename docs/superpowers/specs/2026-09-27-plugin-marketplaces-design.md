@@ -140,6 +140,7 @@ Body sections:
 4. Reference map: one line per reference file saying when to read it.
 
 Rule text lives only in SKILL.md; references cite rules by id and never restate them.
+Plan 2c extended R12 (name every check that was not run) and R15 (no model session while validating); SKILL.md holds the current text (owner review of plan 2c).
 
 ## 7. References
 
