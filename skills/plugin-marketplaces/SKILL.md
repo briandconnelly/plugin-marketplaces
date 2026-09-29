@@ -44,8 +44,9 @@ Run the validator from this skill: `check-marketplace <marketplace root>` when i
 1. Write `marketplace-policy.json` with the target readers (R1).
 2. Choose catalogs (see Defaults) and source types every declared reader of each catalog accepts (R2, R3, R4).
 3. Name entries after their plugins' manifests (R8), and disclose executable components in each description (R11).
-4. Set versions (R6), then run the validator and the load checks in [validation.md](references/validation.md) for each reader, isolated (R15).
-5. Report as R12 requires.
+4. List every plugin the request names in every catalog it names, even when a reader cannot run part of it; say in the report what will not work in which tool, and leave a plugin out of a catalog only when the user decides to.
+5. Set versions (R6), then run the validator and the load checks in [validation.md](references/validation.md) for each reader, isolated (R15).
+6. Report as R12 requires.
 
 ### Add a plugin
 
@@ -73,6 +74,7 @@ Run the validator from this skill: `check-marketplace <marketplace root>` when i
 
 1. Read [feature-matrix.md](references/feature-matrix.md) for which of the plugin's components the target tool loads, and in what form.
 2. Add the target's manifest additively; never delete another tool's files to make a plugin portable.
+   A portable root `plugin.json` changes what Codex and Copilot CLI read, so check what the plugin gains and loses in each tool first ([multi-tool.md](references/multi-tool.md), "What adding the portable pair changes").
 3. Load-check the port in each tool without opening a model session ([validation.md](references/validation.md), "Seeing what loaded").
 4. Report, per tool, what loads, what loads in another form, and what does not load, citing the reference or the check for each claim.
 

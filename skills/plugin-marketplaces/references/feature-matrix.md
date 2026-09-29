@@ -36,7 +36,7 @@ Rules are cited by id from [SKILL.md](../SKILL.md); each cell cites a row of the
 | Question | Claude Code | Codex | Copilot CLI |
 | --- | --- | --- | --- |
 | Marketplace name | no spaces, `/`, `\`, `..`; reserved names [E7] | `[A-Za-z0-9_-]+` [E8] | no documented rule [E9] |
-| Entry vs manifest `name` | must match, or `not found in marketplace` [E7] | must match, or install refuses [E8] | same-named manifests collapse into one plugin [E9] |
+| Entry vs manifest `name` | must match; installing by the entry name works but shows the manifest name, and installing by the manifest name gives `not found in marketplace` [E7] [E11] | must match, or install refuses [E8] | same-named manifests collapse into one plugin [E9] |
 | Version it installs | `.claude-plugin/plugin.json`, then entry, then derived from the source [E7] [E4] | root `plugin.json` (portable), else the compatibility manifest, then entry [E8] [E4] | root `plugin.json` when present [E4] |
 | Change without a version bump | not delivered [E10] | delivered by `codex plugin marketplace upgrade` [E10] | local catalogs load live; remote unproven [E9] |
 
@@ -57,3 +57,4 @@ Conformance probes: none yet.
 | E8 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120` (`marketplace.rs`, `plugin_id.rs`, `store.rs`) and probes on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
 | E9 | Copilot CLI plugin reference and probes on copilot 1.0.88 and 1.0.89; `docs/research/2026-09-27-other-harnesses.md`, `docs/research/2026-09-27-phase0-probes.md`, and `docs/research/2026-09-28-load-and-update-probes.md` P3 | probe |
 | E10 | probe P2; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
+| E11 | plan-2c with-skill runs of scenario 6; `tests/runs/2026-09-28-s6-r1-with-skill.md` | run |

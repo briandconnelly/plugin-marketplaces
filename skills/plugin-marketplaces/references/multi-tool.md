@@ -23,6 +23,13 @@ Each tool ignores the other pair, so the two manifests must agree on `name` (R8)
 - Commands, agents, hooks, `userConfig`, and LSP servers have no portable form: keep them in the Claude adapter, and give Codex hooks through `extensions["com.openai"].hooks` in the root manifest if Codex should run them [E2] [E3].
 - Migrate additively: add the portable pair beside the existing files and remove nothing another tool reads [E2].
 
+## What adding the portable pair changes
+
+- Without a root `plugin.json`, Codex and Copilot CLI read the Claude-format manifest: Codex migrates each command with a `description` into a `source-command-<name>` skill and Copilot CLI offers commands as skills, but MCP server arguments keep `${CLAUDE_PLUGIN_ROOT}` literally, so a server started from a path under it cannot start [E6] [E8] [E9].
+- With a root `plugin.json`, both tools read only the portable package: MCP servers from `mcp.json` get a real `${PLUGIN_ROOT}`, and `commands/` is no longer read, so commands stop reaching Codex and Copilot CLI users [E1] [E7].
+- To keep a command in every tool, move `commands/<name>.md` to `skills/<name>/SKILL.md`: Claude Code then lists the same components as before, and all three tools offer the skill; keeping both the command and a same-named skill makes Claude Code list the name twice [E7].
+- Report the trade-off either way; a port that silently drops a command in one tool is a regression for that tool's users.
+
 ## Why two native catalogs
 
 - Codex reads `.agents/plugins/marketplace.json` before `.claude-plugin/marketplace.json`, and Copilot CLI reads `.github/plugin/marketplace.json` and two other paths before `.claude-plugin/marketplace.json`, so each tool family can have its own catalog [E4] [E5].
@@ -49,3 +56,6 @@ Conformance probes: none yet.
 | E4 | `openai/codex` at `659b35f1316eda27ef61850dd0832c4a4e95c120`, `marketplace.rs`, and a probe on codex-cli 0.157.1; `docs/research/2026-09-27-codex.md` §1 | source |
 | E5 | https://docs.github.com/en/copilot/reference/cli-plugin-reference, fetched 2026-09-27; `docs/research/2026-09-27-other-harnesses.md`, GitHub Copilot CLI | docs |
 | E6 | probe P3 on copilot 1.0.89; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
+| E7 | plan-2c with-skill runs of scenario 4 on claude 2.1.284, codex-cli 0.157.1, copilot 1.0.89, comparing the Claude-only and dual-packaged layouts; `tests/runs/2026-09-28-s4-r1-with-skill.md`, `tests/runs/2026-09-28-s4-r2-with-skill.md`, and `tests/runs/2026-09-28-s4-r5-with-skill.md` | run |
+| E8 | Codex command-migration probe; `docs/research/2026-09-28-codex-command-migration-probe.md` | probe |
+| E9 | probe P1; `docs/research/2026-09-28-load-and-update-probes.md` | probe |
